@@ -1,0 +1,107 @@
+# Job search preferences
+search:
+  titles:
+    - "full stack developer"
+    - "fullstack developer"
+    - "full-stack developer"
+    - "frontend developer"
+    - "backend developer"
+    - "web developer"
+    - "software developer"
+    - "software engineer"
+    - "développeur full stack"
+    - "développeur web"
+  locations:
+    - "remote"
+    - "france"
+    - "belgium"
+    - "switzerland"
+    - "luxembourg"
+    - "germany"
+    - "netherlands"
+    - "canada"
+    - "europe"
+  exclude_keywords:
+    - "senior staff"
+    - "principal"
+    - "director"
+    - "VP"
+    - "game developer"
+    - "unity"
+    - "unreal"
+    - "3d"
+    - "blockchain"
+    - "web3"
+    - "crypto"
+  min_salary_cad: 100000
+
+# Scoring weights (must sum to 1.0)
+scoring:
+  tech_match: 0.35
+  remote_match: 0.25
+  location_match: 0.20
+  title_match: 0.20
+
+# Your profile for matching
+profile:
+  name: "Ahmed Gabtni"
+  email: "ahmed.gabtni.dev@gmail.com"
+  years_experience: 5
+  languages:
+    - "French (C2)"
+    - "English (C2)"
+  core_skills:
+    - "javascript"
+    - "typescript"
+    - "react"
+    - "node.js"
+    - "python"
+    - "java"
+    - "spring boot"
+    - "sql"
+    - "postgresql"
+    - "mongodb"
+    - "docker"
+    - "git"
+    - "ci/cd"
+    - "rest api"
+    - "html"
+    - "css"
+    - "tailwind"
+    - "bootstrap"
+    - ".net"
+    - "azure"
+    - "php"
+    - "wordpress"
+    - "drupal"
+    - "c++"
+    - "agile"
+    - "scrum"
+  secondary_skills:
+    - "sap cloud platform"
+    - "jira"
+    - "github copilot"
+    - "ai integration"
+
+# Base resume bullets per role (used for tailoring)
+base_resume:
+  current_role: "Full-Stack Developer | City of Gatineau | Sept 2023 – Present"
+  bullets:
+    city_of_gatineau:
+      - "Automated 30% of .NET development tasks using AI-powered code generation, test scripting, and CI/CD pipeline configuration, accelerating sprint velocity."
+      - "Reduced project delivery times by 15% through automated backlog grooming and sprint planning workflows integrated with Jira."
+      - "Trained 50+ staff on AI tool integration into daily operations, cutting process delays by 40% through workflow automation."
+    precision_os:
+      - "Cut development timelines from 12 to 9 months by templating core application systems including networking, UI/UX, and tool interaction modules in C++."
+      - "Engineered reusable component systems and automated build pipelines (Bash/PowerShell), reducing feature implementation time by 25%."
+      - "Reduced onboarding time by 30% for 5+ new hires through standardized development workflows and documentation."
+      - "Optimized real-time networking layer in C++, cutting latency by 20% and improving application responsiveness."
+    syntax:
+      - "Managed 4 simultaneous client projects using Java, Spring Boot, and Node.js, handling 200% of standard workload while consistently meeting deadlines."
+      - "Built SAP Cloud Platform solutions to streamline contractor payments, signatures, and approval workflows, eliminating 100% of manual processing."
+      - "Boosted Java REST API performance by 20% through profiling, bottleneck analysis, and critical path refactoring."
+      - "Delivered end-to-end full-stack features across frontend and backend, coordinating with cross-functional teams on enterprise-scale applications."
+    uottawa:
+      - "Built 8+ web applications (PHP, JavaScript, Node.js) for research teams, increasing research accessibility by 50% and accelerating cross-faculty collaboration."
+      - "Created 20+ CMS templates (WordPress/Drupal), reducing content publishing time by 25% and enabling researchers to self-manage project showcases."
+      - "Automated repetitive data processing tasks using JavaScript and Python scripts, eliminating 50% of weekly manual work."
