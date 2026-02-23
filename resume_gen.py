@@ -23,10 +23,171 @@ def sanitize_filename(name: str) -> str:
     return name[:80]
 
 
+def _normalize_key(key: str) -> str:
+    """Normalize a role key for fuzzy matching."""
+    return re.sub(r'[^a-z]', '', key.lower())
+
+
+def _get_bullets(tailored_bullets: dict, role_key: str, base_bullets: list) -> list:
+    """
+    Get bullets for a role, handling GPT returning different key formats.
+    Falls back to base resume bullets if tailored bullets are empty or missing.
+    """
+    # Try exact match first
+    bullets = tailored_bullets.get(role_key)
+    if bullets and len(bullets) > 0:
+        # Filter out empty strings
+        bullets = [b for b in bullets if b and b.strip()]
+        if bullets:
+            return bullets
+
+    # Try fuzzy match - normalize both sides
+    normalized_target = _normalize_key(role_key)
+    for key, val in tailored_bullets.items():
+        if _normalize_key(key) == normalized_target:
+            if val and len(val) > 0:
+                cleaned = [b for b in val if b and b.strip()]
+                if cleaned:
+                    return cleaned
+
+    # Try partial match (e.g. "gatineau" in "city_of_gatineau")
+    for key, val in tailored_bullets.items():
+        key_norm = _normalize_key(key)
+        if key_norm in normalized_target or normalized_target in key_norm:
+            if val and len(val) > 0:
+                cleaned = [b for b in val if b and b.strip()]
+                if cleaned:
+                    return cleaned
+
+    # Fallback to base resume bullets
+    return base_bullets if base_bullets else []
+
+
 def generate_resume_docx(job: dict, tailored_data: dict, config: dict, output_dir: Path) -> Path | None:
-    """Generate a tailored .docx resume for a specific job."""
+    """Generate a tailored .docx resume for a specific job.
+    Uses template if configured, otherwise builds from scratch."""
     if not HAS_DOCX:
         return None
+    
+    template_path = config.get("tailoring", {}).get("template", "")
+    
+    if template_path and Path(template_path).exists():
+        return _generate_from_template(job, tailored_data, config, output_dir, template_path)
+    else:
+        return _generate_from_scratch(job, tailored_data, config, output_dir)
+
+
+def _fill_template_placeholders(doc: Document, replacements: dict):
+    """Replace {{PLACEHOLDER}} tags in a Word document, including in tables."""
+    # Replace in paragraphs
+    for para in doc.paragraphs:
+        for key, value in replacements.items():
+            placeholder = "{{" + key + "}}"
+            if placeholder in para.text:
+                # Need to handle runs carefully to preserve formatting
+                for run in para.runs:
+                    if placeholder in run.text:
+                        run.text = run.text.replace(placeholder, value)
+                
+                # Sometimes placeholder spans multiple runs — handle full paragraph
+                if placeholder in para.text:
+                    full_text = para.text
+                    for run in para.runs:
+                        run.text = ""
+                    if para.runs:
+                        para.runs[0].text = full_text
+                    for key2, value2 in replacements.items():
+                        ph2 = "{{" + key2 + "}}"
+                        if ph2 in para.runs[0].text:
+                            para.runs[0].text = para.runs[0].text.replace(ph2, value2)
+    
+    # Replace in tables
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    for key, value in replacements.items():
+                        placeholder = "{{" + key + "}}"
+                        if placeholder in para.text:
+                            for run in para.runs:
+                                if placeholder in run.text:
+                                    run.text = run.text.replace(placeholder, value)
+    
+    # Replace in headers/footers
+    for section in doc.sections:
+        for para in section.header.paragraphs:
+            for key, value in replacements.items():
+                placeholder = "{{" + key + "}}"
+                if placeholder in para.text:
+                    for run in para.runs:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, value)
+        for para in section.footer.paragraphs:
+            for key, value in replacements.items():
+                placeholder = "{{" + key + "}}"
+                if placeholder in para.text:
+                    for run in para.runs:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, value)
+
+
+def _generate_from_template(job: dict, tailored_data: dict, config: dict, output_dir: Path, template_path: str) -> Path | None:
+    """Fill a Word template with tailored resume data."""
+    profile = config["profile"]
+    base_resume = config["base_resume"]
+    tailored_bullets = tailored_data.get("bullets", {})
+    
+    doc = Document(template_path)
+    
+    def format_bullets(key):
+        bullets = _get_bullets(tailored_bullets, key, base_resume["bullets"].get(key, []))
+        return "\n".join(f"• {b}" for b in bullets)
+    
+    summary = tailored_data.get("summary", (
+        f"Full-Stack Developer with {profile['years_experience']}+ years of experience "
+        "building scalable web applications, REST APIs, and cloud-based solutions. "
+        "Bilingual (French C2 / English C2)."
+    ))
+    
+    highlighted = tailored_data.get("skills_to_highlight", [])
+    
+    replacements = {
+        "NAME": profile["name"].upper(),
+        "TITLE": "Full-Stack Developer",
+        "EMAIL": profile["email"],
+        "LANGUAGES": " & ".join(profile["languages"]),
+        "SUMMARY": summary,
+        "SKILLS_LANGUAGES": "JavaScript, TypeScript, Python, Java, C++, SQL, PHP",
+        "SKILLS_FRONTEND": "React.js, HTML/CSS, Tailwind, Bootstrap",
+        "SKILLS_BACKEND": "Node.js, Express, Spring Boot, REST APIs, .NET",
+        "SKILLS_DATABASES": "PostgreSQL, MongoDB, SQL Server",
+        "SKILLS_DEVOPS": "Azure, Docker, CI/CD, Git, SAP Cloud Platform",
+        "SKILLS_TOOLS": "GitHub Copilot, AI-assisted development, Agile/Scrum",
+        "SKILLS_HIGHLIGHTED": ", ".join(highlighted) if highlighted else "",
+        "EXP_GATINEAU": format_bullets("city_of_gatineau"),
+        "EXP_PRECISION": format_bullets("precision_os"),
+        "EXP_SYNTAX": format_bullets("syntax"),
+        "EXP_UOTTAWA": format_bullets("uottawa"),
+        "EDUCATION": "Bachelor of Applied Science, Computer Engineering — University of Ottawa (2016–2020)",
+    }
+    
+    _fill_template_placeholders(doc, replacements)
+    
+    company = job.get("company", "Unknown")
+    title = job.get("title", "Unknown")
+    safe_company = sanitize_filename(company)
+    safe_title = sanitize_filename(title)
+    filename = f"Resume_{safe_company}_{safe_title}.docx"
+    filepath = output_dir / filename
+    
+    doc.save(str(filepath))
+    logger.info(f"Generated resume (template): {filename}")
+    
+    return filepath
+
+
+def _generate_from_scratch(job: dict, tailored_data: dict, config: dict, output_dir: Path) -> Path | None:
+    """Generate a resume from scratch (no template)."""
     
     profile = config["profile"]
     base_resume = config["base_resume"]
@@ -163,7 +324,7 @@ def generate_resume_docx(job: dict, tailored_data: dict, config: dict, output_di
         date_run.font.name = "Calibri"
         
         # Bullets - use tailored if available, else base
-        bullets = tailored_bullets.get(role["key"], base_resume["bullets"].get(role["key"], []))
+        bullets = _get_bullets(tailored_bullets, role["key"], base_resume["bullets"].get(role["key"], []))
         
         for bullet_text in bullets:
             bp = doc.add_paragraph(style="List Bullet")
@@ -238,10 +399,13 @@ def generate_all_resumes(scored_jobs: list[dict], tailored: dict, config: dict, 
         logger.error("python-docx not installed. Cannot generate resumes.")
         return []
     
+    from ats_checker import validate_resume_file, format_report
+    
     resumes_dir = output_dir / "resumes"
     resumes_dir.mkdir(exist_ok=True)
     
     generated = []
+    ats_results = []
     
     for job in scored_jobs:
         job_url = job.get("url", "")
@@ -251,6 +415,35 @@ def generate_all_resumes(scored_jobs: list[dict], tailored: dict, config: dict, 
         filepath = generate_resume_docx(job, tailored[job_url], config, resumes_dir)
         if filepath:
             generated.append(filepath)
+            
+            # Run ATS validation
+            job_desc = job.get("description", "")
+            result = validate_resume_file(str(filepath), job_desc)
+            overall = result.get("overall", {})
+            score = overall.get("score", 0)
+            ready = overall.get("ats_ready", False)
+            
+            status = "✅ ATS-READY" if ready else f"⚠️ SCORE:{score}%"
+            logger.info(f"  ATS check [{status}]: {filepath.name}")
+            
+            if not ready and overall.get("critical_fails"):
+                for issue in overall["critical_fails"]:
+                    logger.warning(f"    🔴 {issue}")
+            
+            ats_results.append({"file": str(filepath), "job": job.get("title", ""), "result": result})
+    
+    # Save ATS report
+    if ats_results:
+        ats_report_lines = ["# ATS Validation Report\n"]
+        for ar in ats_results:
+            ats_report_lines.append(f"## {ar['job']}")
+            ats_report_lines.append(f"File: {ar['file']}")
+            ats_report_lines.append(format_report(ar['result']))
+        
+        ats_report_path = output_dir / "ats_report.md"
+        with open(ats_report_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(ats_report_lines))
+        logger.info(f"ATS report saved: {ats_report_path}")
     
     logger.info(f"Generated {len(generated)} tailored resumes in {resumes_dir}")
     return generated

@@ -33,12 +33,20 @@ search:
     - "blockchain"
     - "web3"
     - "crypto"
-  min_salary_cad: 100000
+  min_salary_cad: 40000
 
 # Resume tailoring settings
 tailoring:
   top_n: 15          # How many top jobs to auto-tailor (increase if you want more)
   min_score: 0.3     # Minimum score to bother tailoring
+  template: ""       # Optional: path to a .docx template file. Leave empty to use built-in format.
+                     # If set, the tool will fill in your template instead of generating from scratch.
+                     # Template must have these placeholders in the text:
+                     #   {{NAME}}, {{TITLE}}, {{EMAIL}}, {{LANGUAGES}}, {{SUMMARY}},
+                     #   {{SKILLS_LANGUAGES}}, {{SKILLS_FRONTEND}}, {{SKILLS_BACKEND}},
+                     #   {{SKILLS_DATABASES}}, {{SKILLS_DEVOPS}}, {{SKILLS_TOOLS}},
+                     #   {{EXP_GATINEAU}}, {{EXP_PRECISION}}, {{EXP_SYNTAX}}, {{EXP_UOTTAWA}},
+                     #   {{EDUCATION}}
   max_jobs: 15          # Max jobs to tailor resumes for
 
 # Scoring weights (must sum to 1.0)
