@@ -3,6 +3,8 @@
 Job Hunter - Scrape jobs, score them, tailor your resume.
 Run daily. Review output. Apply manually to top matches.
 """
+
+import os
 import json
 import yaml
 import logging
@@ -12,9 +14,10 @@ from pathlib import Path
 from scrapers.remoteok import scrape_remoteok
 from scrapers.weworkremotely import scrape_weworkremotely
 from scrapers.linkedin import scrape_linkedin
-from scrapers.indeed import scrape_indeed
+from scrapers.arbeitnow import scrape_arbeitnow
 from matcher import score_jobs
 from tailor import tailor_resume, init_client
+from resume_gen import generate_all_resumes
 
 # Setup logging
 logging.basicConfig(
@@ -28,10 +31,11 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
 OUTPUT_DIR = BASE_DIR / "output"
-HISTORY_PATH = OUTPUT_DIR / "seen_jobs.json"
+HISTORY_PATH = BASE_DIR / "output" / "seen_jobs.json"
 
-# How many top jobs to tailor resumes for
+# How many top jobs to tailor resumes for (overridden by config)
 TOP_N_TO_TAILOR = 15
+MIN_SCORE_TO_TAILOR = 0.3
 
 
 def load_config() -> dict:
@@ -70,8 +74,8 @@ def scrape_all(config: dict) -> list[dict]:
     # LinkedIn - public search, may get rate limited
     all_jobs.extend(scrape_linkedin(titles, locations, exclude))
     
-    # Indeed - RSS feeds
-    all_jobs.extend(scrape_indeed(titles, locations, exclude))
+    # Arbeitnow - European remote jobs, free API
+    all_jobs.extend(scrape_arbeitnow(titles, exclude))
     
     logger.info(f"Total jobs scraped: {len(all_jobs)}")
     return all_jobs
@@ -170,9 +174,13 @@ def main():
     tailored = {}
     has_api = init_client()
     
+    tailoring_cfg = config.get("tailoring", {})
+    max_tailor = tailoring_cfg.get("top_n", TOP_N_TO_TAILOR)
+    min_score = tailoring_cfg.get("min_score", MIN_SCORE_TO_TAILOR)
+    
     if has_api:
-        top_jobs = [j for j in scored_jobs[:TOP_N_TO_TAILOR] if j.get("score", 0) > 0.3]
-        logger.info(f"Tailoring resumes for top {len(top_jobs)} jobs...")
+        top_jobs = [j for j in scored_jobs[:max_tailor] if j.get("score", 0) > min_score]
+        logger.info(f"Tailoring resumes for top {len(top_jobs)} jobs (max={max_tailor}, min_score={min_score})...")
         
         for job in top_jobs:
             result = tailor_resume(job, config)
@@ -183,6 +191,9 @@ def main():
     
     # Generate report
     report = generate_report(scored_jobs, tailored, config)
+    
+    # Generate tailored .docx resumes
+    generated_resumes = generate_all_resumes(scored_jobs, tailored, config, OUTPUT_DIR)
     
     # Save report
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -206,7 +217,7 @@ def main():
     
     # Summary
     logger.info("=" * 50)
-    logger.info(f"DONE. {len(new_jobs)} new jobs found, {len(tailored)} resumes tailored.")
+    logger.info(f"DONE. {len(new_jobs)} new jobs found, {len(tailored)} resumes tailored, {len(generated_resumes)} .docx files generated.")
     logger.info(f"Top 5 matches:")
     for j in scored_jobs[:5]:
         logger.info(f"  [{j['score']:.0%}] {j['title']} @ {j['company']} ({j['source']})")
