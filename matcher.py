@@ -4,6 +4,62 @@ import re
 logger = logging.getLogger(__name__)
 
 
+# Common non-English/French indicators in job descriptions
+NON_SUPPORTED_LANG_PATTERNS = [
+    # German
+    r'\b(und|oder|für|mit|wir|suchen|ihre|bewerbung|erfahrung|aufgaben|anforderungen|kenntnisse|arbeiten|unternehmen|stellenangebot|deine|dein)\b',
+    # Spanish
+    r'\b(trabajar|empresa|experiencia|requisitos|conocimientos|buscamos|puesto|equipo|oportunidad)\b',
+    # Portuguese
+    r'\b(trabalhar|empresa|experiência|requisitos|conhecimentos|procuramos|equipe|oportunidade|vaga)\b',
+    # Dutch
+    r'\b(werken|ervaring|vacature|zoeken|functie|vereisten|solliciteer|bedrijf)\b',
+    # Italian
+    r'\b(lavoro|azienda|esperienza|requisiti|conoscenze|cerchiamo|posizione|opportunità)\b',
+]
+
+
+def detect_unsupported_language(text: str) -> str | None:
+    """Detect if text is primarily in a non-English/non-French language.
+    Returns language name if detected, None if English/French."""
+    if not text or len(text) < 100:
+        return None
+    
+    text_lower = text.lower()
+    
+    lang_names = ["German", "Spanish", "Portuguese", "Dutch", "Italian"]
+    
+    for pattern, lang in zip(NON_SUPPORTED_LANG_PATTERNS, lang_names):
+        matches = len(re.findall(pattern, text_lower))
+        # If 5+ matches of language-specific words, it's likely that language
+        if matches >= 5:
+            return lang
+    
+    return None
+
+
+def filter_by_language(jobs: list[dict]) -> list[dict]:
+    """Remove jobs that are in unsupported languages."""
+    filtered = []
+    skipped = 0
+    
+    for job in jobs:
+        combined = f"{job.get('title', '')} {job.get('description', '')}"
+        lang = detect_unsupported_language(combined)
+        
+        if lang:
+            logger.info(f"Skipping ({lang}): {job.get('title', '?')} @ {job.get('company', '?')}")
+            skipped += 1
+            continue
+        
+        filtered.append(job)
+    
+    if skipped:
+        logger.info(f"Filtered out {skipped} jobs in unsupported languages")
+    
+    return filtered
+
+
 def score_jobs(jobs: list[dict], config: dict) -> list[dict]:
     """Score and rank jobs against profile."""
     profile = config["profile"]

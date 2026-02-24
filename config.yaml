@@ -39,7 +39,7 @@ search:
 tailoring:
   top_n: 15          # How many top jobs to auto-tailor (increase if you want more)
   min_score: 0.3     # Minimum score to bother tailoring
-  template: ""       # Optional: path to a .docx template file. Leave empty to use built-in format.
+  template: "Template-Resume-Placeholders.docx"       # Optional: path to a .docx template file. Leave empty to use built-in format.
                      # If set, the tool will fill in your template instead of generating from scratch.
                      # Template must have these placeholders in the text:
                      #   {{NAME}}, {{TITLE}}, {{EMAIL}}, {{LANGUAGES}}, {{SUMMARY}},
@@ -47,7 +47,7 @@ tailoring:
                      #   {{SKILLS_DATABASES}}, {{SKILLS_DEVOPS}}, {{SKILLS_TOOLS}},
                      #   {{EXP_GATINEAU}}, {{EXP_PRECISION}}, {{EXP_SYNTAX}}, {{EXP_UOTTAWA}},
                      #   {{EDUCATION}}
-  max_jobs: 15          # Max jobs to tailor resumes for
+  max_jobs: 15       # Max jobs to tailor resumes for
 
 # Scoring weights (must sum to 1.0)
 scoring:
@@ -60,6 +60,7 @@ scoring:
 profile:
   name: "Ahmed Gabtni"
   email: "ahmed.gabtni.dev@gmail.com"
+  linkedin: "https://www.linkedin.com/in/ahmed-g-7312a41a6/"
   years_experience: 5
   languages:
     - "French (C2)"

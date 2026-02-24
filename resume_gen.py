@@ -1,6 +1,7 @@
 """Generate tailored .docx resumes for top job matches."""
 
 import re
+import copy
 import logging
 from pathlib import Path
 
@@ -77,58 +78,173 @@ def generate_resume_docx(job: dict, tailored_data: dict, config: dict, output_di
         return _generate_from_scratch(job, tailored_data, config, output_dir)
 
 
-def _fill_template_placeholders(doc: Document, replacements: dict):
-    """Replace {{PLACEHOLDER}} tags in a Word document, including in tables."""
-    # Replace in paragraphs
+def _fill_template_placeholders(doc: Document, replacements: dict, skills_keys: list = None, job_header_keys: list = None):
+    """Replace {{PLACEHOLDER}} tags in a Word document.
+    
+    Special handling:
+    - skills_keys: for these keys, text before ':' is bold, after ':' is not bold
+    - job_header_keys: for these keys, text after '|' (company) is italic
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    
+    skills_keys = skills_keys or []
+    job_header_keys = job_header_keys or []
+    
     for para in doc.paragraphs:
         for key, value in replacements.items():
             placeholder = "{{" + key + "}}"
-            if placeholder in para.text:
-                # Need to handle runs carefully to preserve formatting
+            if placeholder not in para.text:
+                continue
+            
+            # Special: skills lines -> "Label: content" with bold label
+            if key in skills_keys and ":" in value:
+                label, content = value.split(":", 1)
+                # Clear all runs
                 for run in para.runs:
-                    if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value)
+                    run.text = ""
+                if para.runs:
+                    # First run = bold label
+                    para.runs[0].text = label + ":"
+                    para.runs[0].bold = True
+                    # Add a new run for non-bold content
+                    new_run = copy.deepcopy(para.runs[0]._element)
+                    para._element.append(new_run)
+                    # Get the new run and set it
+                    last_run = para.runs[-1]
+                    last_run.text = content
+                    last_run.bold = False
+                continue
+            
+            # Special: job headers -> "Title | Company\tDates" with italic company
+            if key in job_header_keys and "|" in value:
+                parts = value.split("|", 1)
+                title_part = parts[0].strip()
+                rest = parts[1].strip()  # "Company\tDates" or "Company  Dates"
                 
-                # Sometimes placeholder spans multiple runs — handle full paragraph
-                if placeholder in para.text:
-                    full_text = para.text
-                    for run in para.runs:
-                        run.text = ""
-                    if para.runs:
-                        para.runs[0].text = full_text
+                # Split company and dates by tab
+                if "\t" in rest:
+                    company_part, dates_part = rest.split("\t", 1)
+                else:
+                    company_part = rest
+                    dates_part = ""
+                
+                # Clear all runs
+                for run in para.runs:
+                    run.text = ""
+                
+                if para.runs:
+                    # Run 1: Title + " | "
+                    para.runs[0].text = title_part + " | "
+                    para.runs[0].bold = True
+                    para.runs[0].italic = False
+                    
+                    # Run 2: Company (italic)
+                    r2 = copy.deepcopy(para.runs[0]._element)
+                    para._element.append(r2)
+                    run2 = para.runs[-1]
+                    run2.text = company_part.strip()
+                    run2.bold = False
+                    run2.italic = True
+                    
+                    # Run 3: Dates (right-aligned via tab)
+                    if dates_part:
+                        r3 = copy.deepcopy(para.runs[0]._element)
+                        para._element.append(r3)
+                        run3 = para.runs[-1]
+                        run3.text = "\t" + dates_part.strip()
+                        run3.bold = False
+                        run3.italic = False
+                continue
+            
+            # Default: simple replacement
+            for run in para.runs:
+                if placeholder in run.text:
+                    run.text = run.text.replace(placeholder, value)
+            
+            # Handle placeholder spanning multiple runs
+            if placeholder in para.text:
+                full_text = para.text
+                for run in para.runs:
+                    run.text = ""
+                if para.runs:
+                    para.runs[0].text = full_text
                     for key2, value2 in replacements.items():
                         ph2 = "{{" + key2 + "}}"
                         if ph2 in para.runs[0].text:
                             para.runs[0].text = para.runs[0].text.replace(ph2, value2)
+
+
+def _add_hyperlink_to_contact(doc: Document, display_text: str, url: str):
+    """Find 'LinkedIn' in the contact paragraph and replace it with a clickable hyperlink."""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
     
-    # Replace in tables
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for para in cell.paragraphs:
-                    for key, value in replacements.items():
-                        placeholder = "{{" + key + "}}"
-                        if placeholder in para.text:
-                            for run in para.runs:
-                                if placeholder in run.text:
-                                    run.text = run.text.replace(placeholder, value)
-    
-    # Replace in headers/footers
-    for section in doc.sections:
-        for para in section.header.paragraphs:
-            for key, value in replacements.items():
-                placeholder = "{{" + key + "}}"
-                if placeholder in para.text:
-                    for run in para.runs:
-                        if placeholder in run.text:
-                            run.text = run.text.replace(placeholder, value)
-        for para in section.footer.paragraphs:
-            for key, value in replacements.items():
-                placeholder = "{{" + key + "}}"
-                if placeholder in para.text:
-                    for run in para.runs:
-                        if placeholder in run.text:
-                            run.text = run.text.replace(placeholder, value)
+    for para in doc.paragraphs:
+        if display_text not in para.text:
+            continue
+        
+        for run in para.runs:
+            if display_text not in run.text:
+                continue
+            
+            # Split run text around "LinkedIn"
+            before, after = run.text.split(display_text, 1)
+            
+            # Set current run to text before "LinkedIn"
+            run.text = before
+            
+            # Create hyperlink element
+            part = doc.part
+            r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+            
+            hyperlink = OxmlElement('w:hyperlink')
+            hyperlink.set(qn('r:id'), r_id)
+            
+            # Create the run inside the hyperlink
+            new_run = OxmlElement('w:r')
+            rPr = OxmlElement('w:rPr')
+            
+            # Blue underlined style
+            color = OxmlElement('w:color')
+            color.set(qn('w:val'), '0563C1')
+            rPr.append(color)
+            
+            u = OxmlElement('w:u')
+            u.set(qn('w:val'), 'single')
+            rPr.append(u)
+            
+            # Copy font from original run
+            if run.font.name:
+                rFonts = OxmlElement('w:rFonts')
+                rFonts.set(qn('w:ascii'), run.font.name)
+                rFonts.set(qn('w:hAnsi'), run.font.name)
+                rPr.append(rFonts)
+            
+            if run.font.size:
+                sz = OxmlElement('w:sz')
+                sz.set(qn('w:val'), str(run.font.size.pt * 2))
+                rPr.append(sz)
+            
+            new_run.append(rPr)
+            
+            t = OxmlElement('w:t')
+            t.text = display_text
+            new_run.append(t)
+            
+            hyperlink.append(new_run)
+            
+            # Insert hyperlink after current run
+            run._element.addnext(hyperlink)
+            
+            # Add remaining text after hyperlink if any
+            if after:
+                after_run = copy.deepcopy(run._element)
+                for child_t in after_run.findall(qn('w:t')):
+                    child_t.text = after
+                hyperlink.addnext(after_run)
+            
+            return  # Done
 
 
 def _generate_from_template(job: dict, tailored_data: dict, config: dict, output_dir: Path, template_path: str) -> Path | None:
@@ -139,9 +255,18 @@ def _generate_from_template(job: dict, tailored_data: dict, config: dict, output
     
     doc = Document(template_path)
     
-    def format_bullets(key):
-        bullets = _get_bullets(tailored_bullets, key, base_resume["bullets"].get(key, []))
-        return "\n".join(f"• {b}" for b in bullets)
+    def get_bullets(key):
+        """Use fuzzy matching to find bullets regardless of GPT key format."""
+        return _get_bullets(tailored_bullets, key, base_resume["bullets"].get(key, []))
+    
+    def bullet_or_fallback(bullets, idx, base_key):
+        """Return bullet at index, or fall back to base resume bullet."""
+        if idx < len(bullets) and bullets[idx] and bullets[idx].strip():
+            return bullets[idx]
+        base = base_resume["bullets"].get(base_key, [])
+        if idx < len(base):
+            return base[idx]
+        return ""
     
     summary = tailored_data.get("summary", (
         f"Full-Stack Developer with {profile['years_experience']}+ years of experience "
@@ -149,29 +274,63 @@ def _generate_from_template(job: dict, tailored_data: dict, config: dict, output
         "Bilingual (French C2 / English C2)."
     ))
     
-    highlighted = tailored_data.get("skills_to_highlight", [])
+    gatineau = get_bullets("city_of_gatineau")
+    precision = get_bullets("precision_os")
+    syntax = get_bullets("syntax")
+    uottawa = get_bullets("uottawa")
+    
+    # Debug: log what we got
+    logger.debug(f"GPT returned bullet keys: {list(tailored_bullets.keys())}")
+    logger.debug(f"Gatineau bullets ({len(gatineau)}): {gatineau[:1] if gatineau else 'EMPTY'}")
+    logger.debug(f"Precision bullets ({len(precision)}): {precision[:1] if precision else 'EMPTY'}")
+    logger.debug(f"Syntax bullets ({len(syntax)}): {syntax[:1] if syntax else 'EMPTY'}")
+    logger.debug(f"uOttawa bullets ({len(uottawa)}): {uottawa[:1] if uottawa else 'EMPTY'}")
     
     replacements = {
-        "NAME": profile["name"].upper(),
+        "NAME": profile["name"],
         "TITLE": "Full-Stack Developer",
-        "EMAIL": profile["email"],
-        "LANGUAGES": " & ".join(profile["languages"]),
+        "CONTACT": f"{profile['email']} | LinkedIn",
         "SUMMARY": summary,
-        "SKILLS_LANGUAGES": "JavaScript, TypeScript, Python, Java, C++, SQL, PHP",
-        "SKILLS_FRONTEND": "React.js, HTML/CSS, Tailwind, Bootstrap",
-        "SKILLS_BACKEND": "Node.js, Express, Spring Boot, REST APIs, .NET",
-        "SKILLS_DATABASES": "PostgreSQL, MongoDB, SQL Server",
-        "SKILLS_DEVOPS": "Azure, Docker, CI/CD, Git, SAP Cloud Platform",
-        "SKILLS_TOOLS": "GitHub Copilot, AI-assisted development, Agile/Scrum",
-        "SKILLS_HIGHLIGHTED": ", ".join(highlighted) if highlighted else "",
-        "EXP_GATINEAU": format_bullets("city_of_gatineau"),
-        "EXP_PRECISION": format_bullets("precision_os"),
-        "EXP_SYNTAX": format_bullets("syntax"),
-        "EXP_UOTTAWA": format_bullets("uottawa"),
-        "EDUCATION": "Bachelor of Applied Science, Computer Engineering — University of Ottawa (2016–2020)",
+        "SKILLS_LANGUAGES": "Languages: JavaScript, TypeScript, Python, Java, C++, SQL, PHP",
+        "SKILLS_FRAMEWORKS": "Frontend: React.js, HTML/CSS, Tailwind, Bootstrap, Responsive Design",
+        "SKILLS_WEB": "Backend: Node.js, Express, Spring Boot, REST APIs, .NET",
+        "SKILLS_CLOUD": "Databases: PostgreSQL, MongoDB, SQL Server",
+        "SKILLS_DEVOPS": "Cloud & DevOps: Azure, Docker, CI/CD, Git, SAP Cloud Platform",
+        "SKILLS_AI": "Tools: GitHub Copilot, AI-assisted development, Agile/Scrum, Jira",
+        "SKILLS_SPOKEN": "Spoken Languages: French (Fluent, C2), English (Fluent, C2)",
+        "JOB1_HEADER": "Full-Stack Developer | City of Gatineau\tSept 2023 \u2013 Present",
+        "JOB1_BULLET_1": bullet_or_fallback(gatineau, 0, "city_of_gatineau"),
+        "JOB1_BULLET_2": bullet_or_fallback(gatineau, 1, "city_of_gatineau"),
+        "JOB1_BULLET_3": bullet_or_fallback(gatineau, 2, "city_of_gatineau"),
+        "JOB2_HEADER": "Software Engineer | Precision OS\tJan 2022 \u2013 Sept 2023",
+        "JOB2_BULLET_1": bullet_or_fallback(precision, 0, "precision_os"),
+        "JOB2_BULLET_2": bullet_or_fallback(precision, 1, "precision_os"),
+        "JOB2_BULLET_3": bullet_or_fallback(precision, 2, "precision_os"),
+        "JOB3_HEADER": "Full-Stack Developer | Syntax (Consulting)\tJan 2021 \u2013 Jan 2022",
+        "JOB3_BULLET_1": bullet_or_fallback(syntax, 0, "syntax"),
+        "JOB3_BULLET_2": bullet_or_fallback(syntax, 1, "syntax"),
+        "JOB3_BULLET_3": bullet_or_fallback(syntax, 2, "syntax"),
+        "JOB4_HEADER": "Web Developer | University of Ottawa\tMay 2019 \u2013 Jan 2021",
+        "JOB4_BULLET_1": bullet_or_fallback(uottawa, 0, "uottawa"),
+        "JOB4_BULLET_2": bullet_or_fallback(uottawa, 1, "uottawa"),
+        "JOB4_BULLET_3": bullet_or_fallback(uottawa, 2, "uottawa"),
+        "EDUCATION": "Bachelor of Applied Science, Computer Engineering\t2016 \u2013 2020",
+        "UNIVERSITY": "University of Ottawa",
     }
     
-    _fill_template_placeholders(doc, replacements)
+    # Define which keys get special formatting
+    skills_keys = [
+        "SKILLS_LANGUAGES", "SKILLS_FRAMEWORKS", "SKILLS_WEB",
+        "SKILLS_CLOUD", "SKILLS_DEVOPS", "SKILLS_AI", "SKILLS_SPOKEN",
+    ]
+    job_header_keys = ["JOB1_HEADER", "JOB2_HEADER", "JOB3_HEADER", "JOB4_HEADER"]
+    
+    _fill_template_placeholders(doc, replacements, skills_keys=skills_keys, job_header_keys=job_header_keys)
+    
+    # Post-process: turn "LinkedIn" text in contact line into a real hyperlink
+    linkedin_url = profile.get("linkedin", "")
+    if linkedin_url:
+        _add_hyperlink_to_contact(doc, "LinkedIn", linkedin_url)
     
     company = job.get("company", "Unknown")
     title = job.get("title", "Unknown")
@@ -430,13 +589,17 @@ def generate_all_resumes(scored_jobs: list[dict], tailored: dict, config: dict, 
                 for issue in overall["critical_fails"]:
                     logger.warning(f"    🔴 {issue}")
             
-            ats_results.append({"file": str(filepath), "job": job.get("title", ""), "result": result})
+            ats_results.append({"file": str(filepath), 
+                                "job": job.get("title", ""), 
+                                "job_url": job.get("url", ""), 
+                                "result": result})
     
     # Save ATS report
     if ats_results:
         ats_report_lines = ["# ATS Validation Report\n"]
         for ar in ats_results:
             ats_report_lines.append(f"## {ar['job']}")
+            ats_report_lines.append(f"Link: {ar['job_url']}")
             ats_report_lines.append(f"File: {ar['file']}")
             ats_report_lines.append(format_report(ar['result']))
         

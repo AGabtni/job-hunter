@@ -39,7 +39,7 @@ def tailor_resume(job: dict, config: dict) -> dict | None:
     company = job.get("company", "")
     matched_skills = job.get("matched_skills", [])
     
-    prompt = f"""You are a resume optimization expert. Tailor the following resume bullets for this specific job posting.
+    prompt = f"""You are a resume optimization expert. Tailor the following resume bullets for this specific job posting. Your goal is to MAXIMIZE keyword overlap with the job description while keeping content truthful.
 
 JOB:
 - Title: {job_title}
@@ -52,29 +52,42 @@ CANDIDATE PROFILE:
 - Languages: {', '.join(profile['languages'])}
 - Skills matching this job: {', '.join(matched_skills)}
 
-CURRENT RESUME BULLETS:
-{chr(10).join(f'- {b}' for b in all_bullets)}
+CURRENT RESUME BULLETS BY ROLE:
+[city_of_gatineau]
+{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('city_of_gatineau', []))}
+
+[precision_os]
+{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('precision_os', []))}
+
+[syntax]
+{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('syntax', []))}
+
+[uottawa]
+{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('uottawa', []))}
 
 INSTRUCTIONS:
-1. Rewrite ONLY the bullets that can be improved for this specific job
+1. Rewrite bullets to emphasize skills and technologies from the job description
 2. Keep the same factual content - do NOT fabricate metrics or experiences
-3. Emphasize skills and technologies mentioned in the job description
-4. If a bullet is already good as-is, keep it unchanged
-5. Keep bullets concise (1-2 lines each)
-6. Use strong action verbs
+3. NEVER remove numbers or percentages from bullets. Every metric (20%, 30%, 50+, 8+, etc.) from the original MUST appear in the rewritten version.
+4. EVERY role MUST have EXACTLY 3 bullets. No more, no less.
+5. Work as many keywords from the job description into the bullets as possible without making them sound forced
+6. The summary must be a single paragraph (2-3 sentences) that naturally includes key terms from the job description
+7. Use strong action verbs
+8. Use EXACTLY these keys: city_of_gatineau, precision_os, syntax, uottawa
 
-Return a JSON object with this structure:
+Return a JSON object with EXACTLY this structure:
 {{
-  "summary": "A 2-sentence professional summary tailored for this role",
+  "summary": "A 2-3 sentence professional summary paragraph tailored for this role, incorporating key terms from the job description",
   "bullets": {{
     "city_of_gatineau": ["bullet1", "bullet2", "bullet3"],
-    "precision_os": ["bullet1", "bullet2", "bullet3", "bullet4"],
-    "syntax": ["bullet1", "bullet2", "bullet3", "bullet4"],
+    "precision_os": ["bullet1", "bullet2", "bullet3"],
+    "syntax": ["bullet1", "bullet2", "bullet3"],
     "uottawa": ["bullet1", "bullet2", "bullet3"]
   }},
   "skills_to_highlight": ["skill1", "skill2", "skill3"]
 }}
 
+CRITICAL: Each role MUST have EXACTLY 3 bullets. Use EXACTLY the keys shown above.
 Return ONLY valid JSON, no markdown, no backticks."""
 
     try:

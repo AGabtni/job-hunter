@@ -15,7 +15,7 @@ from scrapers.remoteok import scrape_remoteok
 from scrapers.weworkremotely import scrape_weworkremotely
 from scrapers.linkedin import scrape_linkedin
 from scrapers.arbeitnow import scrape_arbeitnow
-from matcher import score_jobs
+from matcher import score_jobs, filter_by_language
 from tailor import tailor_resume, init_client
 from resume_gen import generate_all_resumes
 
@@ -166,6 +166,9 @@ def main():
     if not new_jobs:
         logger.info("No new jobs found today. Try again tomorrow.")
         return
+    
+    # Filter out non-English/French jobs
+    new_jobs = filter_by_language(new_jobs)
     
     # Score and rank
     scored_jobs = score_jobs(new_jobs, config)
