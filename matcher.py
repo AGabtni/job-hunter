@@ -60,6 +60,48 @@ def filter_by_language(jobs: list[dict]) -> list[dict]:
     return filtered
 
 
+# Patterns that indicate a job is restricted to a specific country/region we can't work from
+LOCATION_EXCLUSION_PATTERNS = [
+    r'\bus[- ]?only\b',
+    r'\busa[- ]?only\b',
+    r'\bunited states[- ]?only\b',
+    r'\bmust be (based|located|residing) in (the )?(us|usa|united states|america)\b',
+    r'\bus[- ]?(citizen|resident|based|located)\b',
+    r'\bauthori[sz]ed to work in (the )?(us|usa|united states)\b',
+    r'\bwork authori[sz]ation.{0,20}(us|usa|united states)\b',
+    r'\b(us|usa|american) (work )?permit required\b',
+    r'\bno (remote|international).{0,10}outside.{0,10}(us|usa)\b',
+    r'\bremote.{0,5}\((us|usa|united states)\)\b',
+    r'\bremote\s*[-–]\s*(us|usa|united states)\b',
+]
+
+LOCATION_EXCLUSION_RE = re.compile('|'.join(LOCATION_EXCLUSION_PATTERNS), re.IGNORECASE)
+
+
+def filter_location_restricted(jobs: list[dict]) -> list[dict]:
+    """Remove jobs that are restricted to US/country-only."""
+    filtered = []
+    skipped = 0
+    
+    for job in jobs:
+        title = job.get("title", "")
+        desc = job.get("description", "")
+        location = job.get("location", "")
+        combined = f"{title} {desc} {location}"
+        
+        if LOCATION_EXCLUSION_RE.search(combined):
+            logger.info(f"Skipping (location-restricted): {job.get('title', '?')} @ {job.get('company', '?')}")
+            skipped += 1
+            continue
+        
+        filtered.append(job)
+    
+    if skipped:
+        logger.info(f"Filtered out {skipped} location-restricted jobs")
+    
+    return filtered
+
+
 def score_jobs(jobs: list[dict], config: dict) -> list[dict]:
     """Score and rank jobs against profile."""
     profile = config["profile"]
