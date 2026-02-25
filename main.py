@@ -15,7 +15,7 @@ from scrapers.remoteok import scrape_remoteok
 from scrapers.weworkremotely import scrape_weworkremotely
 from scrapers.linkedin import scrape_linkedin
 from scrapers.arbeitnow import scrape_arbeitnow
-from matcher import score_jobs, filter_by_language
+from matcher import score_jobs, filter_by_language, filter_location_restricted
 from tailor import tailor_resume, init_client
 from resume_gen import generate_all_resumes
 
@@ -69,7 +69,7 @@ def scrape_all(config: dict) -> list[dict]:
     all_jobs.extend(scrape_remoteok(titles, exclude))
     
     # WeWorkRemotely - RSS feeds
-    all_jobs.extend(scrape_weworkremotely(titles, exclude))
+    #all_jobs.extend(scrape_weworkremotely(titles, exclude))
     
     # LinkedIn - public search, may get rate limited
     all_jobs.extend(scrape_linkedin(titles, locations, exclude))
@@ -169,6 +169,9 @@ def main():
     
     # Filter out non-English/French jobs
     new_jobs = filter_by_language(new_jobs)
+    
+    # Filter out US-only / country-restricted jobs
+    new_jobs = filter_location_restricted(new_jobs)
     
     # Score and rank
     scored_jobs = score_jobs(new_jobs, config)
