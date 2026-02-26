@@ -12,9 +12,10 @@ from datetime import datetime
 from pathlib import Path
 
 from scrapers.remoteok import scrape_remoteok
-from scrapers.weworkremotely import scrape_weworkremotely
 from scrapers.linkedin import scrape_linkedin
 from scrapers.arbeitnow import scrape_arbeitnow
+from scrapers.remotive import scrape_remotive
+from scrapers.jobicy import scrape_jobicy
 from matcher import score_jobs, filter_by_language, filter_location_restricted
 from tailor import tailor_resume, init_client
 from resume_gen import generate_all_resumes
@@ -68,14 +69,17 @@ def scrape_all(config: dict) -> list[dict]:
     # RemoteOK - reliable, JSON API
     all_jobs.extend(scrape_remoteok(titles, exclude))
     
-    # WeWorkRemotely - RSS feeds
-    #all_jobs.extend(scrape_weworkremotely(titles, exclude))
-    
     # LinkedIn - public search, may get rate limited
     all_jobs.extend(scrape_linkedin(titles, locations, exclude))
     
     # Arbeitnow - European remote jobs, free API
     all_jobs.extend(scrape_arbeitnow(titles, exclude))
+    
+    # Remotive - global remote jobs, free API
+    all_jobs.extend(scrape_remotive(titles, exclude))
+    
+    # Jobicy - European remote jobs, free API
+    all_jobs.extend(scrape_jobicy(titles, exclude))
     
     logger.info(f"Total jobs scraped: {len(all_jobs)}")
     return all_jobs

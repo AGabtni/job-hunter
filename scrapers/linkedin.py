@@ -45,11 +45,17 @@ def scrape_linkedin(titles: list[str], locations: list[str], exclude_keywords: l
     seen_ids = set()
 
     search_queries = [
-        "full stack developer remote",
-        "fullstack developer remote",
+        "full stack developer",
+        "fullstack developer",
+        "web developer",
+        "software developer",
+        "frontend developer",
+        "backend developer",
+        "software engineer",
+        "software engineer europe",
         "développeur full stack",
-        "web developer remote",
-        "software developer remote",
+        "développeur web",
+        "développeur javascript",
     ]
 
     for query in search_queries:
