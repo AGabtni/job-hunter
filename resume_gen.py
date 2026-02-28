@@ -679,6 +679,11 @@ def generate_all_resumes(scored_jobs: list[dict], tailored: dict, config: dict, 
                 for issue in overall["critical_fails"]:
                     logger.warning(f"    🔴 {issue}")
             
+            # Save ATS report inside the job folder
+            ats_txt_path = filepath.parent / "ats_report.txt"
+            with open(ats_txt_path, "w", encoding="utf-8") as f:
+                f.write(format_report(result))
+            
             ats_results.append({"file": str(filepath), 
                                 "job": job.get("title", ""), 
                                 "job_url": job.get("url", ""), 
