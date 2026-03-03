@@ -43,94 +43,104 @@ def scrape_linkedin(titles: list[str], locations: list[str], exclude_keywords: l
     """Scrape LinkedIn public job listings (no auth required)."""
     jobs = []
     seen_ids = set()
+    rate_limited = False
 
+    # f_WT=2 already filters remote, no need for "remote" in queries
     search_queries = [
         "full stack developer",
         "fullstack developer",
-        "web developer",
-        "software developer",
         "frontend developer",
         "backend developer",
+        "web developer",
+        "software developer",
         "software engineer",
-        "software engineer europe",
+        "react developer",
+        "node.js developer",
+        "python developer",
         "développeur full stack",
         "développeur web",
         "développeur javascript",
     ]
 
     for query in search_queries:
-        try:
-            logger.info(f"LinkedIn search: '{query}'")
+        if rate_limited:
+            break
 
-            params = {
-                "keywords": query,
-                "location": "Worldwide",
-                "f_WT": "2",
-                "f_TPR": "r604800",
-                "start": "0",
-            }
+        for start in [0, 25]:  # Page 1 and 2
+            try:
+                if start == 0:
+                    logger.info(f"LinkedIn search: '{query}'")
 
-            url = f"{LINKEDIN_BASE}?{urllib.parse.urlencode(params)}"
-            resp = requests.get(url, headers=HEADERS, timeout=15)
+                params = {
+                    "keywords": query,
+                    "location": "Worldwide",
+                    "f_WT": "2",
+                    "f_TPR": "r604800",
+                    "start": str(start),
+                }
 
-            if resp.status_code == 429:
-                logger.warning("LinkedIn rate limited. Stopping search.")
-                break
+                url = f"{LINKEDIN_BASE}?{urllib.parse.urlencode(params)}"
+                resp = requests.get(url, headers=HEADERS, timeout=15)
 
-            if resp.status_code != 200:
-                logger.warning(f"LinkedIn returned {resp.status_code}")
-                continue
+                if resp.status_code == 429:
+                    logger.warning("LinkedIn rate limited. Stopping search.")
+                    rate_limited = True
+                    break
 
-            soup = BeautifulSoup(resp.text, "html.parser")
-            cards = soup.find_all("div", class_="base-card")
-
-            for card in cards:
-                try:
-                    title_el = card.find("h3", class_="base-search-card__title")
-                    company_el = card.find("h4", class_="base-search-card__subtitle")
-                    location_el = card.find("span", class_="job-search-card__location")
-                    link_el = card.find("a", class_="base-card__full-link")
-                    time_el = card.find("time")
-
-                    if not title_el:
-                        continue
-
-                    title = title_el.get_text(strip=True)
-                    company = company_el.get_text(strip=True) if company_el else ""
-                    location = location_el.get_text(strip=True) if location_el else "Remote"
-                    job_url = link_el["href"].split("?")[0] if link_el and link_el.get("href") else ""
-                    date = time_el.get("datetime", "") if time_el else ""
-
-                    job_id = job_url or f"{company}-{title}"
-                    if job_id in seen_ids:
-                        continue
-                    seen_ids.add(job_id)
-
-                    combined = f"{title.lower()} {company.lower()} {location.lower()}"
-
-                    if any(kw.lower() in combined for kw in exclude_keywords):
-                        continue
-
-                    jobs.append({
-                        "title": title,
-                        "company": company,
-                        "location": location,
-                        "url": job_url,
-                        "description": "",
-                        "tags": [],
-                        "salary_min": None,
-                        "salary_max": None,
-                        "date_posted": date,
-                        "source": "LinkedIn",
-                    })
-                except Exception as e:
-                    logger.debug(f"Error parsing LinkedIn card: {e}")
+                if resp.status_code != 200:
+                    logger.warning(f"LinkedIn returned {resp.status_code}")
                     continue
 
-            time.sleep(3)
+                soup = BeautifulSoup(resp.text, "html.parser")
+                cards = soup.find_all("div", class_="base-card")
 
-        except Exception as e:
-            logger.error(f"LinkedIn scraping failed for '{query}': {e}")
+                for card in cards:
+                    try:
+                        title_el = card.find("h3", class_="base-search-card__title")
+                        company_el = card.find("h4", class_="base-search-card__subtitle")
+                        location_el = card.find("span", class_="job-search-card__location")
+                        link_el = card.find("a", class_="base-card__full-link")
+                        time_el = card.find("time")
+
+                        if not title_el:
+                            continue
+
+                        title = title_el.get_text(strip=True)
+                        company = company_el.get_text(strip=True) if company_el else ""
+                        location = location_el.get_text(strip=True) if location_el else "Remote"
+                        job_url = link_el["href"].split("?")[0] if link_el and link_el.get("href") else ""
+                        date = time_el.get("datetime", "") if time_el else ""
+
+                        job_id = job_url or f"{company}-{title}"
+                        if job_id in seen_ids:
+                            continue
+                        seen_ids.add(job_id)
+
+                        combined = f"{title.lower()} {company.lower()} {location.lower()}"
+
+                        if any(kw.lower() in combined for kw in exclude_keywords):
+                            continue
+
+                        jobs.append({
+                            "title": title,
+                            "company": company,
+                            "location": location,
+                            "url": job_url,
+                            "description": "",
+                            "tags": [],
+                            "salary_min": None,
+                            "salary_max": None,
+                            "date_posted": date,
+                            "source": "LinkedIn",
+                        })
+                    except Exception as e:
+                        logger.debug(f"Error parsing LinkedIn card: {e}")
+                        continue
+
+                time.sleep(3)
+
+            except Exception as e:
+                logger.error(f"LinkedIn scraping failed for '{query}': {e}")
 
     # Fetch full descriptions for all LinkedIn jobs
     if jobs:

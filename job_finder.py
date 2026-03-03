@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""
+Job Finder Module
+=================
+Scrapes multiple job boards, filters, scores, outputs ranked jobs.json.
+
+Standalone:
+    python job_finder.py                      # Full run -> output/jobs.json
+    python job_finder.py -o my_jobs.json      # Custom output
+    python job_finder.py --no-history         # Ignore seen_jobs
+
+Pipeline:
+    from job_finder import find_jobs
+    jobs = find_jobs(config)
+"""
+
+import re
+import json
+import yaml
+import logging
+import argparse
+from pathlib import Path
+
+from scrapers.remoteok import scrape_remoteok
+from scrapers.linkedin import scrape_linkedin
+from scrapers.arbeitnow import scrape_arbeitnow
+from scrapers.remotive import scrape_remotive
+from scrapers.jobicy import scrape_jobicy
+
+logger = logging.getLogger(__name__)
+BASE_DIR = Path(__file__).parent
+
+
+# --- Language detection ---
+LANGUAGE_PATTERNS = {
+    "German": ["arbeiten", "erfahrung", "kenntnisse", "anforderungen", "aufgaben",
+               "bewerbung", "unternehmen", "stellenangebot", "verantwortung",
+               "entwicklung", "mindestens", "berufserfahrung", "und", "oder", "wir suchen"],
+    "Spanish": ["experiencia", "requisitos", "responsabilidades", "conocimientos",
+                "empresa", "desarrollo", "habilidades", "trabajar", "buscamos"],
+    "Portuguese": ["experiência", "requisitos", "responsabilidades", "conhecimentos",
+                   "empresa", "desenvolvimento", "habilidades", "trabalhar"],
+    "Dutch": ["ervaring", "vereisten", "verantwoordelijkheden", "kennis",
+              "bedrijf", "ontwikkeling", "vaardigheden", "werken"],
+    "Italian": ["esperienza", "requisiti", "responsabilità", "conoscenze",
+                "azienda", "sviluppo", "competenze", "lavorare"],
+}
+
+LOCATION_EXCLUSION_RE = re.compile(
+    r'|'.join([
+        # US restrictions
+        r'\bus[- ]?only\b', r'\busa[- ]?only\b', r'\bunited states[- ]?only\b',
+        r'\bmust be (based|located|residing) in (the )?(us|usa|united states|america)\b',
+        r'\bus[- ]?(citizen|resident|based|located)\b',
+        r'\bauthori[sz]ed to work in (the )?(us|usa|united states)\b',
+        r'\bwork authori[sz]ation.{0,20}(us|usa|united states)\b',
+        r'\bremote.{0,5}\((us|usa|united states)\)\b',
+        r'\bremote\s*[-–]\s*(us|usa|united states)\b',
+        # EU/Europe restrictions
+        r'\beu[- ]?only\b', r'\beurope[- ]?only\b',
+        r'\bmust be (based|located|residing) in (the )?e\.?u\.?\b',
+        r'\bauthori[sz]ed to work in (the )?(eu|europe|european union)\b',
+        r'\bwork authori[sz]ation.{0,20}(eu|europe|european union)\b',
+        r'\beu work permit required\b',
+        r'\bremote.{0,5}\((eu|europe)\)\b',
+        r'\bremote\s*[-–]\s*(eu|europe)\b',
+        # UK restrictions
+        r'\buk[- ]?only\b', r'\bauthori[sz]ed to work in (the )?uk\b',
+        # India/LATAM restrictions
+        r'\bindia[- ]?only\b', r'\blatam[- ]?only\b',
+    ]), re.IGNORECASE)
+
+
+def _scrape_all(config: dict) -> list[dict]:
+    search = config["search"]
+    titles, locations, exclude = search["titles"], search["locations"], search["exclude_keywords"]
+    all_jobs = []
+    all_jobs.extend(scrape_remoteok(titles, exclude))
+    all_jobs.extend(scrape_linkedin(titles, locations, exclude))
+    all_jobs.extend(scrape_arbeitnow(titles, exclude))
+    all_jobs.extend(scrape_remotive(titles, exclude))
+    all_jobs.extend(scrape_jobicy(titles, exclude))
+    logger.info(f"Total scraped: {len(all_jobs)}")
+    return all_jobs
+
+
+def _deduplicate(jobs, seen):
+    unique, urls, signatures = [], set(), set()
+    for job in jobs:
+        url = job.get("url", "")
+        if not url or url in urls or url in seen:
+            continue
+        # Also dedup by company + title (same job on different boards)
+        sig = f"{job.get('company', '').lower().strip()}|{job.get('title', '').lower().strip()}"
+        if sig in signatures:
+            continue
+        urls.add(url)
+        signatures.add(sig)
+        unique.append(job)
+    logger.info(f"After dedup: {len(unique)} new ({len(jobs) - len(unique)} removed)")
+    return unique
+
+
+def _filter_jobs(jobs, config):
+    exclude_companies = [c.lower().strip() for c in config.get("search", {}).get("exclude_companies", []) if c.strip()]
+    
+    # Locations we CAN work from
+    allowed_location_words = [
+        "anywhere", "worldwide", "global", "remote",
+        "canada", "tunisia", "africa", "mena",
+    ]
+    # Locations we CANNOT work from (checked against location field only)
+    blocked_location_words = [
+        "germany", "berlin", "munich", "hamburg", "frankfurt",
+        "united states", "usa", "new york", "san francisco", "seattle", "austin", "chicago", "boston", "los angeles",
+        "united kingdom", "london", "uk",
+        "france", "paris",
+        "spain", "madrid", "barcelona",
+        "italy", "milan", "rome",
+        "netherlands", "amsterdam",
+        "switzerland", "zurich",
+        "belgium", "brussels",
+        "sweden", "stockholm",
+        "denmark", "copenhagen",
+        "norway", "oslo",
+        "finland", "helsinki",
+        "poland", "warsaw",
+        "portugal", "lisbon",
+        "austria", "vienna",
+        "ireland", "dublin",
+        "india", "bangalore", "bengaluru", "mumbai", "hyderabad", "pune", "chennai", "delhi", "noida", "gurgaon",
+        "brazil", "são paulo", "sao paulo",
+        "mexico", "mexico city",
+        "argentina", "buenos aires",
+        "australia", "sydney", "melbourne",
+        "japan", "tokyo",
+        "singapore",
+        "china", "beijing", "shanghai",
+        "south korea", "seoul",
+    ]
+    
+    filtered = []
+    for job in jobs:
+        desc_lower = job.get("description", "").lower()
+        company_lower = job.get("company", "").lower()
+        location_lower = job.get("location", "").lower()
+        
+        # Company exclusion
+        if exclude_companies and any(ec in company_lower for ec in exclude_companies):
+            logger.debug(f"Skipping (excluded company): {job.get('company', '?')}")
+            continue
+        
+        # Language check
+        skip = False
+        for lang, patterns in LANGUAGE_PATTERNS.items():
+            if sum(1 for p in patterns if p in desc_lower) >= 5:
+                logger.debug(f"Skipping ({lang}): {job.get('title', '?')}")
+                skip = True
+                break
+        if skip:
+            continue
+        
+        # Description-level location check (catches "US only", "EU work permit required", etc.)
+        full = f"{desc_lower} {location_lower}"
+        if LOCATION_EXCLUSION_RE.search(full):
+            logger.debug(f"Skipping (location-restricted): {job.get('title', '?')}")
+            continue
+        
+        # Location field check: if location specifies a blocked country/city AND doesn't say "remote"/"anywhere"
+        if location_lower and location_lower not in ["", "remote"]:
+            is_allowed = any(a in location_lower for a in allowed_location_words)
+            is_blocked = any(b in location_lower for b in blocked_location_words)
+            if is_blocked and not is_allowed:
+                logger.debug(f"Skipping (blocked location '{job.get('location', '')}'): {job.get('title', '?')}")
+                continue
+        
+        filtered.append(job)
+    logger.info(f"After filters: {len(filtered)} ({len(jobs) - len(filtered)} removed)")
+    return filtered
+
+
+def _score_jobs(jobs, config):
+    profile = config["profile"]
+    scoring = config["scoring"]
+    search = config["search"]
+    core = [s.lower() for s in profile["core_skills"]]
+    secondary = [s.lower() for s in profile.get("secondary_skills", [])]
+    titles = [t.lower() for t in search["titles"]]
+    remote_kw = ["remote", "anywhere", "worldwide", "work from home", "wfh", "distributed"]
+
+    for job in jobs:
+        tl = job["title"].lower()
+        dl = job.get("description", "").lower()
+        ll = job.get("location", "").lower()
+        tags_l = " ".join(t.lower() for t in job.get("tags", []))
+        c = f"{tl} {dl} {tags_l}"
+
+        cm = sum(1 for s in core if s in c)
+        sm = sum(1 for s in secondary if s in c)
+        tech = min(1.0, (cm * 1.5 + sm * 0.5) / (len(core) * 0.4)) if core else 0
+        remote = 1.0 if any(kw in c or kw in ll for kw in remote_kw) else 0.2
+        
+        # Location scoring: can only work from Canada or Tunisia
+        good_locs = ["anywhere", "worldwide", "global", "canada", "tunisia", "africa", "mena", "middle east", "north africa"]
+        bad_locs = ["us only", "usa only", "united states", "eu only", "europe only", "uk only", "india only", "latam only"]
+        if any(g in ll for g in good_locs):
+            loc = 1.0
+        elif any(b in ll for b in bad_locs):
+            loc = 0.05  # Nearly kill it
+        else:
+            loc = 0.4  # Unknown — might be OK
+        title = 0.3
+        for st in titles:
+            if st in tl:
+                title = 1.0
+                break
+            if len(set(st.split()) & set(tl.split())) >= 2:
+                title = max(title, 0.7)
+
+        # Relevance check: must be a dev/engineering IC role, not management or non-dev
+        dev_keywords = ["developer", "développeur", "programmer", "architect"]
+        # "engineer" only counts if NOT preceded by "customer", "sales", "support", "solutions"
+        has_dev_keyword = any(dk in tl for dk in dev_keywords)
+        if not has_dev_keyword and "engineer" in tl:
+            non_dev_prefixes = ["customer", "sales", "support", "solutions", "field", "site reliability"]
+            has_dev_keyword = not any(p in tl for p in non_dev_prefixes)
+        # "manager" roles are never dev roles
+        if "manager" in tl and "developer" not in tl:
+            has_dev_keyword = False
+
+        total = tech * scoring["tech_match"] + remote * scoring["remote_match"] + loc * scoring["location_match"] + title * scoring["title_match"]
+        
+        if not has_dev_keyword:
+            total *= 0.15  # Crush score for non-dev roles
+        job["score"] = round(total, 3)
+        job["score_breakdown"] = {"tech": round(tech, 2), "remote": round(remote, 2), "location": round(loc, 2), "title": round(title, 2)}
+        job["matched_skills"] = [s for s in core if s in c]
+
+    jobs.sort(key=lambda x: x["score"], reverse=True)
+    return jobs
+
+
+def find_jobs(config: dict, seen: set = None) -> list[dict]:
+    """Main entry: scrape, filter, score, return ranked jobs."""
+    raw = _scrape_all(config)
+    unique = _deduplicate(raw, seen or set())
+    filtered = _filter_jobs(unique, config)
+    return _score_jobs(filtered, config)
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
+    parser = argparse.ArgumentParser(description="Find and rank remote dev jobs")
+    parser.add_argument("-c", "--config", default=str(BASE_DIR / "config.yaml"))
+    parser.add_argument("-o", "--output", default="output/jobs.json")
+    parser.add_argument("--no-history", action="store_true")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    seen = set()
+    history = Path(args.output).parent / "seen_jobs.json"
+    if not args.no_history and history.exists():
+        seen = set(json.load(open(history)))
+        logger.info(f"Loaded {len(seen)} seen jobs")
+
+    jobs = find_jobs(config, seen)
+
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as f:
+        json.dump(jobs, f, indent=2, ensure_ascii=False, default=str)
+
+    if not args.no_history:
+        for j in jobs:
+            if j.get("url"):
+                seen.add(j["url"])
+        with open(history, "w") as f:
+            json.dump(list(seen), f)
+
+    logger.info(f"Found {len(jobs)} jobs -> {args.output}")
+    for j in jobs[:5]:
+        logger.info(f"  [{j['score']:.0%}] {j['title']} @ {j['company']}")
+
+
+if __name__ == "__main__":
+    main()

@@ -19,6 +19,13 @@ import sys
 import re
 import logging
 from pathlib import Path
+
+# Import shared tech terms and normalizations from resume_generator
+try:
+    from resume_generator import TECH_TERMS, TEXT_NORMALIZATIONS
+except ImportError:
+    TECH_TERMS = set()
+    TEXT_NORMALIZATIONS = {}
 from collections import Counter
 
 logger = logging.getLogger(__name__)
@@ -272,26 +279,86 @@ def check_file_size(filepath: str) -> dict:
     return {"pass": size_mb <= 5, "issues": issues, "severity": "warning" if issues else "ok", "size_mb": round(size_mb, 2)}
 
 
-def check_keyword_match(text: str, job_description: str) -> dict:
+def check_keyword_match(text: str, job_description: str, company: str = "") -> dict:
     """Check keyword overlap between resume and job description."""
     if not job_description:
         return {"pass": True, "issues": [], "severity": "skipped", "match_pct": None}
     
-    # Extract meaningful words (3+ chars, not common words)
     stop_words = {
+        # Common English
         "the", "and", "for", "are", "but", "not", "you", "all", "can", "her", "was",
         "one", "our", "out", "has", "have", "been", "from", "they", "with", "this",
         "that", "will", "your", "their", "about", "would", "there", "these", "other",
         "into", "more", "some", "such", "than", "them", "then", "what", "when", "which",
         "who", "how", "each", "she", "two", "way", "its", "may", "also", "must",
+        "per", "any", "own", "both", "being", "after", "before", "here", "where",
+        "over", "under", "most", "very", "just", "only", "did", "does", "done",
+        # Job posting filler
         "work", "working", "ability", "strong", "experience", "team", "role", "looking",
         "join", "company", "position", "candidate", "ideal", "required", "preferred",
         "including", "using", "etc", "well", "good", "great", "should", "could",
+        "based", "help", "make", "like", "need", "new", "high", "best", "ensure",
+        "across", "within", "part", "take", "year", "years", "day", "time",
+        "apply", "equal", "opportunity", "employer", "status", "employment",
+        "benefits", "salary", "compensation", "base", "annually", "range",
+        # Legal boilerplate
+        "accommodation", "accommodations", "applicant", "applicants", "applicable",
+        "discrimination", "disability", "race", "color", "religion", "gender",
+        "national", "origin", "sexual", "orientation", "veteran", "protected",
+        "law", "federal", "state", "local", "comply", "accordance",
+        "conditions", "terms", "agree", "right", "rights", "notice",
+        # Generic verbs/adjectives
+        "deliver", "drive", "driven", "effective", "enable", "build", "create",
+        "develop", "developing", "developed", "support", "manage", "lead",
+        "provide", "maintain", "design", "designed", "implement", "improve",
+        "advanced", "direct", "clear", "better", "demand", "description",
+        "duties", "responsible", "responsibilities", "building", "collaborate",
+        # Non-technical noise
+        "amp", "don", "business", "customer", "customers", "culture",
+        "diverse", "diversity", "inclusion", "belonging", "ambitious",
+        "additional", "certain", "around", "alongside", "among",
+        "communication", "candidates", "bring", "coverage",
+        # Corporate filler
+        "colleagues", "career", "countries", "committed", "employees", "employee",
+        "contribute", "continuous", "define", "developers", "engineers",
+        "end", "edge", "form", "free", "get", "group", "hours", "insurance",
+        "activities", "commitment", "communities", "education", "empowers",
+        "enables", "capacity", "consideration", "cost", "access", "care",
+        # Common German words
+        "der", "die", "das", "ein", "eine", "einer", "und", "ist", "mit",
+        "auf", "den", "dem", "von", "wir", "uns", "fur", "für", "sie",
+        "sich", "oder", "auch", "als", "bei", "wird", "nach", "nicht",
+        "wie", "hat", "dein", "deine", "unser", "unsere", "zum", "zur",
+        "brauchen", "suchen", "bieten", "dich", "dir",
+        # Common French words
+        "les", "des", "une", "est", "dans", "pour", "avec", "sur", "qui",
+        "par", "pas", "sont", "nous", "vous", "mais", "tout", "cette",
+        "aux", "ses", "nos", "vos", "plus", "entre",
+        # Misc
+        "e.g", "i.e", "etc", "via",
     }
     
-    def extract_keywords(text):
-        words = re.findall(r'[a-zA-Z\+\#\.]{3,}', text.lower())
-        return [w for w in words if w not in stop_words]
+    # Dynamically exclude company name words
+    if company:
+        for word in re.findall(r'[a-zA-Z]{3,}', company.lower()):
+            stop_words.add(word)
+    
+    def clean_text(t):
+        t = re.sub(r'&amp;?#?\w+;?', ' ', t)
+        t = re.sub(r'https?://\S+', ' ', t)
+        t = re.sub(r'#\w+', ' ', t)
+        t = re.sub(r'[<>{}]', ' ', t)
+        return t
+    
+    def extract_keywords(t):
+        t = clean_text(t)
+        # Normalize compound terms before extraction
+        t_lower = t.lower()
+        for raw, normalized in TEXT_NORMALIZATIONS.items():
+            t_lower = t_lower.replace(raw, normalized)
+        words = re.findall(r'[a-zA-Z][a-zA-Z\+\#\.]*[a-zA-Z\+\#]|[a-zA-Z]{3,}', t_lower)
+        words = [w.rstrip('.') for w in words]
+        return [w for w in words if w not in stop_words and len(w) >= 3]
     
     resume_words = extract_keywords(text)
     job_words = extract_keywords(job_description)
@@ -302,28 +369,32 @@ def check_keyword_match(text: str, job_description: str) -> dict:
     job_keywords = Counter(job_words)
     resume_set = set(resume_words)
     
-    # Get top job keywords (appearing 2+ times or unique technical terms)
-    important_job_keywords = set()
-    for word, count in job_keywords.items():
-        if count >= 2 or any(c in word for c in ['+', '#', '.']):
-            important_job_keywords.add(word)
+    # Technical/skill keywords — these are what ATS actually cares about
+    # Using shared TECH_TERMS from resume_generator
     
-    # Also add less frequent but likely technical terms
-    tech_indicators = {
-        "python", "javascript", "typescript", "react", "node", "java", "sql",
-        "aws", "azure", "docker", "kubernetes", "git", "api", "rest", "graphql",
-        "mongodb", "postgresql", "redis", "agile", "scrum", "ci/cd", "devops",
-        "html", "css", "tailwind", "bootstrap", "spring", "django", "flask",
-        "vue", "angular", "express", "next.js", "nuxt", "php", "ruby", "golang",
-        "c++", "c#", ".net", "swift", "kotlin",
-    }
-    
+    # Find technical keywords that appear in job description
+    tech_in_job = set()
     for word in job_keywords:
-        if word in tech_indicators:
-            important_job_keywords.add(word)
+        if word in TECH_TERMS or any(c in word for c in ['+', '#', '.']):
+            tech_in_job.add(word)
+    
+    # Also catch multi-word tech like "node.js" that got split
+    job_text_lower = " ".join(job_words)
+    for term in ["node.js", "vue.js", "react.js", "next.js", "nest.js", "spring boot",
+                  "sql server", "ci/cd", "full-stack", "front-end", "back-end"]:
+        if term in job_text_lower:
+            tech_in_job.add(term)
+    
+    # If very few tech terms found, add high-frequency non-stop words as backup
+    if len(tech_in_job) < 5:
+        for word, count in job_keywords.most_common(15):
+            if count >= 2 and len(word) >= 4:
+                tech_in_job.add(word)
+    
+    important_job_keywords = tech_in_job
     
     if not important_job_keywords:
-        important_job_keywords = set(list(job_keywords.keys())[:30])
+        important_job_keywords = set(list(job_keywords.keys())[:20])
     
     matched = important_job_keywords & resume_set
     missing = important_job_keywords - resume_set
@@ -358,7 +429,7 @@ def check_keyword_match(text: str, job_description: str) -> dict:
 # MAIN VALIDATOR
 # ============================================================
 
-def validate_resume(doc: Document, filepath: str, job_description: str = "") -> dict:
+def validate_resume(doc: Document, filepath: str, job_description: str = "", company: str = "") -> dict:
     """Run all ATS checks on a loaded document. Returns full report."""
     results = {}
     
@@ -374,7 +445,7 @@ def validate_resume(doc: Document, filepath: str, job_description: str = "") -> 
     results["sections"] = check_sections(results["text_extract"].get("text", ""))
     
     if job_description:
-        results["keyword_match"] = check_keyword_match(results["text_extract"].get("text", ""), job_description)
+        results["keyword_match"] = check_keyword_match(results["text_extract"].get("text", ""), job_description, company=company)
     
     # Overall score
     total_checks = 0
@@ -407,7 +478,7 @@ def validate_resume(doc: Document, filepath: str, job_description: str = "") -> 
     return results
 
 
-def validate_resume_file(filepath: str, job_description: str = "") -> dict:
+def validate_resume_file(filepath: str, job_description: str = "", company: str = "") -> dict:
     """Validate a .docx file from path. Convenience wrapper."""
     if not HAS_DOCX:
         return {"error": "python-docx not installed. Run: pip install python-docx"}
@@ -417,7 +488,7 @@ def validate_resume_file(filepath: str, job_description: str = "") -> dict:
         return {"error": f"File not found: {filepath}"}
     
     doc = Document(str(path))
-    return validate_resume(doc, filepath, job_description)
+    return validate_resume(doc, filepath, job_description, company=company)
 
 
 def format_report(results: dict) -> str:
@@ -473,12 +544,20 @@ def main():
     parser.add_argument("resume", help="Path to .docx resume file")
     parser.add_argument("--job-description", "-j", help="Job description text to match against", default="")
     parser.add_argument("--job-file", "-f", help="Path to .txt file containing job description", default="")
+    parser.add_argument("--job-json", help="Path to job.json (uses description field)", default="")
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     
     args = parser.parse_args()
     
     job_desc = args.job_description
-    if args.job_file:
+    if args.job_json:
+        import json as json_mod
+        with open(args.job_json, "r", encoding="utf-8") as jf:
+            data = json_mod.load(jf)
+        if isinstance(data, list):
+            data = data[0]
+        job_desc = data.get("description", "")
+    elif args.job_file:
         job_desc = Path(args.job_file).read_text(encoding="utf-8")
     
     results = validate_resume_file(args.resume, job_desc)
@@ -488,11 +567,10 @@ def main():
         sys.exit(1)
     
     if args.json:
-        import json
-        # Remove raw text from output
+        import json as json_mod
         if "text_extract" in results:
             results["text_extract"].pop("text", None)
-        print(json.dumps(results, indent=2))
+        print(json_mod.dumps(results, indent=2))
     else:
         print(format_report(results))
 

@@ -57,6 +57,12 @@ def scrape_jobicy(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
                 
                 company = item.get("companyName", "")
                 location = item.get("jobGeo", "Remote")
+                
+                # Skip only explicitly restricted geos
+                location_lower = location.lower()
+                blocked_geos = ["usa", "united states", "india", "latin america", "latam"]
+                if any(b == location_lower.strip() for b in blocked_geos):
+                    continue
                 salary_min = item.get("annualSalaryMin", "")
                 salary_max = item.get("annualSalaryMax", "")
                 salary_currency = item.get("salaryCurrency", "")
@@ -84,63 +90,3 @@ def scrape_jobicy(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
     
     logger.info(f"Jobicy: {len(jobs)} jobs found")
     return jobs
-
-
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-
-    titles = [
-        "full stack developer",
-        "fullstack developer",
-        "full-stack developer",
-        "frontend developer",
-        "backend developer",
-        "web developer",
-        "software developer",
-        "software engineer",
-        "développeur full stack",
-        "développeur web",
-    ]
-
-    exclude_keywords = [
-        "senior",
-        "field",
-        "principal",
-        "director",
-        "manager"
-        "vp",
-        "game developer",
-        "unity",
-        "unreal",
-        "3d",
-        "blockchain",
-        "web3",
-        "crypto",
-        "junior",
-        "intern",
-        "mumbai",
-        "india",
-        "hyderabad",
-        "bangalore",
-        "chennai",
-        "remote in india",
-        "remote in mumbai",
-        "remote in hyderabad",
-        "remote in bangalore",
-        "remote in chennai",
-    ]
-
-    jobs = scrape_jobicy(titles, exclude_keywords)
-
-    # Example: print results
-    for job in jobs:
-        print(f"{job['title']} - {job['company']} ({job['location']})")
-        print(job["url"])
-        print("-" * 60)
-
-
-if __name__ == "__main__":
-    main()
