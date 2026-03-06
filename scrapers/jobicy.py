@@ -13,7 +13,7 @@ HEADERS = {
 }
 
 
-def scrape_jobicy(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
+def scrape_jobicy(titles: list[str], exclude_keywords: list[str], blocked_countries: list[str] = None) -> list[dict]:
     """Scrape Jobicy API for remote dev jobs."""
     jobs = []
     seen_urls = set()
@@ -60,7 +60,7 @@ def scrape_jobicy(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
                 
                 # Skip only explicitly restricted geos
                 location_lower = location.lower()
-                blocked_geos = ["usa", "united states", "india", "latin america", "latam"]
+                blocked_geos = blocked_countries or []
                 if any(b == location_lower.strip() for b in blocked_geos):
                     continue
                 salary_min = item.get("annualSalaryMin", "")

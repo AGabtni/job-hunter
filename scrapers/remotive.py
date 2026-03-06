@@ -15,7 +15,7 @@ HEADERS = {
 CATEGORIES = ["software-dev", "frontend-dev", "backend-dev", "web-dev"]
 
 
-def scrape_remotive(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
+def scrape_remotive(titles: list[str], exclude_keywords: list[str], blocked_countries: list[str] = None) -> list[dict]:
     """Scrape Remotive API for remote dev jobs."""
     jobs = []
     seen_urls = set()
@@ -61,6 +61,12 @@ def scrape_remotive(titles: list[str], exclude_keywords: list[str]) -> list[dict
                 
                 company = item.get("company_name", "")
                 location = item.get("candidate_required_location", "Worldwide")
+                
+                # Block low-salary locations
+                if blocked_countries and location:
+                    loc_lower = location.lower()
+                    if any(b in loc_lower for b in blocked_countries):
+                        continue
                 salary = item.get("salary", "")
                 date = item.get("publication_date", "")
                 tags = item.get("tags", [])

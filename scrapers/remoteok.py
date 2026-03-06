@@ -12,7 +12,7 @@ HEADERS = {
 }
 
 
-def scrape_remoteok(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
+def scrape_remoteok(titles: list[str], exclude_keywords: list[str], blocked_countries: list[str] = None) -> list[dict]:
     """Scrape RemoteOK using their public JSON API."""
     jobs = []
     
@@ -56,6 +56,12 @@ def scrape_remoteok(titles: list[str], exclude_keywords: list[str]) -> list[dict
             # Exclude unwanted keywords
             if any(kw.lower() in combined for kw in exclude_keywords):
                 continue
+            
+            # Block low-salary locations
+            if blocked_countries and location:
+                loc_lower = location.lower()
+                if any(b in loc_lower for b in blocked_countries):
+                    continue
             
             full_url = f"https://remoteok.com{url}" if url and not url.startswith("http") else url
             

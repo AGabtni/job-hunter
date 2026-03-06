@@ -48,38 +48,42 @@ LANGUAGE_PATTERNS = {
 
 LOCATION_EXCLUSION_RE = re.compile(
     r'|'.join([
-        # US restrictions
-        r'\bus[- ]?only\b', r'\busa[- ]?only\b', r'\bunited states[- ]?only\b',
-        r'\bmust be (based|located|residing) in (the )?(us|usa|united states|america)\b',
-        r'\bus[- ]?(citizen|resident|based|located)\b',
-        r'\bauthori[sz]ed to work in (the )?(us|usa|united states)\b',
-        r'\bwork authori[sz]ation.{0,20}(us|usa|united states)\b',
-        r'\bremote.{0,5}\((us|usa|united states)\)\b',
-        r'\bremote\s*[-–]\s*(us|usa|united states)\b',
-        # EU/Europe restrictions
-        r'\beu[- ]?only\b', r'\beurope[- ]?only\b',
-        r'\bmust be (based|located|residing) in (the )?e\.?u\.?\b',
-        r'\bauthori[sz]ed to work in (the )?(eu|europe|european union)\b',
-        r'\bwork authori[sz]ation.{0,20}(eu|europe|european union)\b',
-        r'\beu work permit required\b',
-        r'\bremote.{0,5}\((eu|europe)\)\b',
-        r'\bremote\s*[-–]\s*(eu|europe)\b',
-        # UK restrictions
-        r'\buk[- ]?only\b', r'\bauthori[sz]ed to work in (the )?uk\b',
-        # India/LATAM restrictions
-        r'\bindia[- ]?only\b', r'\blatam[- ]?only\b',
+        # Not actually remote
+        r'fully remote.{0,10}not an option',
+        r'remote work is not.{0,10}(option|available|possible)',
+        r'come into the office',
+        r'on[- ]?site.{0,10}required',
+        r'in[- ]?office.{0,10}required',
+        r'present in the office',
+        r'\bhybrid\b',
+        # Residency / location lock
+        r'residency in \w+',
+        r'must (be|have) residen(cy|ce) in',
+        r'candidates based in',
+        r'applications from.{0,30}(distant|other).{0,20}not.{0,10}considered',
+        r'\bmust be (based|located|residing) in\b',
+        # Work authorization (generic)
+        r'\bauthori[sz]ed to work in\b',
+        r'\bwork (authori[sz]ation|permit) required\b',
+        r'\bwork visa.{0,10}not.{0,10}sponsor',
+        r'\bno visa sponsorship\b',
+        # Language hard requirements (German fluency = German market lock)
+        r'fluent.{0,5}(in )?german',
+        r'\bgerman.{0,5}(c1|c2|native|fluent|required|mandatory)\b',
     ]), re.IGNORECASE)
 
 
 def _scrape_all(config: dict) -> list[dict]:
     search = config["search"]
     titles, locations, exclude = search["titles"], search["locations"], search["exclude_keywords"]
+    blocked = [c.lower().strip() for c in search.get("blocked_countries", []) if c.strip()]
+    max_age = search.get("max_age_days", 7)
     all_jobs = []
-    all_jobs.extend(scrape_remoteok(titles, exclude))
-    all_jobs.extend(scrape_linkedin(titles, locations, exclude))
-    all_jobs.extend(scrape_arbeitnow(titles, exclude))
-    all_jobs.extend(scrape_remotive(titles, exclude))
-    all_jobs.extend(scrape_jobicy(titles, exclude))
+    all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
+    all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
     logger.info(f"Total scraped: {len(all_jobs)}")
     return all_jobs
 
@@ -110,34 +114,7 @@ def _filter_jobs(jobs, config):
         "canada", "tunisia", "africa", "mena",
     ]
     # Locations we CANNOT work from (checked against location field only)
-    blocked_location_words = [
-        "germany", "berlin", "munich", "hamburg", "frankfurt",
-        "united states", "usa", "new york", "san francisco", "seattle", "austin", "chicago", "boston", "los angeles",
-        "united kingdom", "london", "uk",
-        "france", "paris",
-        "spain", "madrid", "barcelona",
-        "italy", "milan", "rome",
-        "netherlands", "amsterdam",
-        "switzerland", "zurich",
-        "belgium", "brussels",
-        "sweden", "stockholm",
-        "denmark", "copenhagen",
-        "norway", "oslo",
-        "finland", "helsinki",
-        "poland", "warsaw",
-        "portugal", "lisbon",
-        "austria", "vienna",
-        "ireland", "dublin",
-        "india", "bangalore", "bengaluru", "mumbai", "hyderabad", "pune", "chennai", "delhi", "noida", "gurgaon",
-        "brazil", "são paulo", "sao paulo",
-        "mexico", "mexico city",
-        "argentina", "buenos aires",
-        "australia", "sydney", "melbourne",
-        "japan", "tokyo",
-        "singapore",
-        "china", "beijing", "shanghai",
-        "south korea", "seoul",
-    ]
+    blocked_location_words = [c.lower().strip() for c in config.get("search", {}).get("blocked_countries", []) if c.strip()]
     
     filtered = []
     for job in jobs:

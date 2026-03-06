@@ -12,7 +12,7 @@ HEADERS = {
 }
 
 
-def scrape_arbeitnow(titles: list[str], exclude_keywords: list[str]) -> list[dict]:
+def scrape_arbeitnow(titles: list[str], exclude_keywords: list[str], blocked_countries: list[str] = None) -> list[dict]:
     """Scrape Arbeitnow European job board API."""
     jobs = []
     page = 1
@@ -68,6 +68,12 @@ def scrape_arbeitnow(titles: list[str], exclude_keywords: list[str]) -> list[dic
                 if any(kw.lower() in combined for kw in exclude_keywords):
                     continue
 
+                # Block low-salary locations
+                if blocked_countries and location:
+                    loc_lower = location.lower()
+                    if any(b in loc_lower for b in blocked_countries):
+                        continue
+                
                 jobs.append({
                     "title": title,
                     "company": company,
