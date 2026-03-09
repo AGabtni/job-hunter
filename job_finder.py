@@ -15,6 +15,7 @@ Pipeline:
 """
 
 import re
+import os
 import json
 import yaml
 import logging
@@ -48,26 +49,33 @@ LANGUAGE_PATTERNS = {
 
 LOCATION_EXCLUSION_RE = re.compile(
     r'|'.join([
-        # Not actually remote
+        # Explicitly NOT remote
         r'fully remote.{0,10}not an option',
         r'remote work is not.{0,10}(option|available|possible)',
-        r'come into the office',
-        r'on[- ]?site.{0,10}required',
-        r'in[- ]?office.{0,10}required',
+        r'this.{0,15}(is not|isn.t).{0,15}remote',
+        r'not.{0,5}a? ?remote.{0,10}(position|role)',
+        r'no remote',
+        # On-site / in-office as work arrangement
+        r'(work|job) (arrangement|type|mode|style).{0,15}(on[- ]?site|in[- ]?office|in[- ]?person|hybrid)',
+        r'this (is|position is|role is).{0,10}(an? )?(on[- ]?site|in[- ]?office|in[- ]?person|hybrid)',
+        r'\b(on[- ]?site|in[- ]?person|hybrid) (position|role|job|work)\b',
+        # Must be physically present
+        r'must.{0,15}(come|be present|report).{0,15}(in |at |to )?(the )?office',
+        r'required to (be in|work from|report to) (the |our )?office',
         r'present in the office',
-        r'\bhybrid\b',
+        r'come into the office',
         # Residency / location lock
         r'residency in \w+',
         r'must (be|have) residen(cy|ce) in',
         r'candidates based in',
+        # Applications explicitly excluded by distance
         r'applications from.{0,30}(distant|other).{0,20}not.{0,10}considered',
-        r'\bmust be (based|located|residing) in\b',
-        # Work authorization (generic)
+        # Work authorization
         r'\bauthori[sz]ed to work in\b',
         r'\bwork (authori[sz]ation|permit) required\b',
         r'\bwork visa.{0,10}not.{0,10}sponsor',
         r'\bno visa sponsorship\b',
-        # Language hard requirements (German fluency = German market lock)
+        # Fluent German = locked to DACH market
         r'fluent.{0,5}(in )?german',
         r'\bgerman.{0,5}(c1|c2|native|fluent|required|mandatory)\b',
     ]), re.IGNORECASE)
@@ -80,7 +88,8 @@ def _scrape_all(config: dict) -> list[dict]:
     max_age = search.get("max_age_days", 7)
     all_jobs = []
     all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
-    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
+    li_at = config.get("linkedin", {}).get("li_at", "") or os.environ.get("LINKEDIN_LI_AT", "")
+    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age, li_at=li_at))
     all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))

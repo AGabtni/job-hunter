@@ -226,81 +226,41 @@ def tailor_for_job(job: dict, config: dict, missing_keywords: list[str] = None) 
     top_kw = _extract_top_keywords(job_desc, company=company)
     kw_str = ", ".join(f"{kw}({c}x)" for kw, c in top_kw if c >= 2)
 
-    # If retrying with missing keywords, emphasize them
+    # Load prompt templates from files
+    prompts_dir = Path(__file__).parent / "prompts"
+    
+    system_prompt = (prompts_dir / "system.txt").read_text(encoding="utf-8").strip()
+    tailor_template = (prompts_dir / "tailor.txt").read_text(encoding="utf-8")
+    
+    # Build missing keywords section for retries
     missing_str = ""
     if missing_keywords:
-        missing_str = f"""
+        retry_template = (prompts_dir / "retry.txt").read_text(encoding="utf-8")
+        missing_str = retry_template.replace("{missing_keywords}", ", ".join(missing_keywords[:15]))
 
-CRITICAL — PREVIOUS ATTEMPT FAILED ATS CHECK. These keywords were MISSING from the resume and MUST be added:
-{', '.join(missing_keywords[:15])}
+    # Build bullet strings
+    bullets_city = chr(10).join(f"- {b}" for b in base_resume["bullets"].get("city_of_gatineau", []))
+    bullets_pos = chr(10).join(f"- {b}" for b in base_resume["bullets"].get("precision_os", []))
+    bullets_syn = chr(10).join(f"- {b}" for b in base_resume["bullets"].get("syntax", []))
+    bullets_uot = chr(10).join(f"- {b}" for b in base_resume["bullets"].get("uottawa", []))
 
-You MUST incorporate each of these keywords somewhere in the resume (summary, skills section, or bullets).
-For each missing keyword, find the most natural bullet to insert it into. If a keyword is a technology the candidate knows, add it to the skills section too."""
-
-    prompt = f"""You are an ATS optimization machine. Your ONLY goal is to maximize keyword match between this resume and the job description.
-
-JOB TITLE: {clean_title}
-COMPANY: {company}
-JOB DESCRIPTION:
-{job_desc[:2500]}
-
-HIGH-FREQUENCY KEYWORDS IN JOB (frequency in parentheses): {kw_str}{missing_str}
-
-CANDIDATE SKILLS (use ONLY these — never invent skills the candidate doesn't have):
-Programming: JavaScript, TypeScript, Python, Java, C++, C#, SQL, PHP
-Frontend: React.js, HTML, CSS, Tailwind, Bootstrap, Responsive Design, WordPress, Drupal, Webflow, WooCommerce, Elementor
-Backend: Node.js, Express, Spring Boot, REST APIs, .NET, PHP
-Databases: PostgreSQL, MongoDB, SQL Server, MySQL
-Cloud/DevOps: Azure, Docker, CI/CD, Git, GitHub, SAP Cloud Platform
-Tools: GitHub Copilot, Jira, Agile/Scrum, Figma, Google Analytics
-CMS: WordPress, Drupal, WooCommerce, SEO, Web Accessibility, WCAG
-Spoken: French (C2), English (C2)
-
-ORIGINAL BULLETS (rewrite these — keep the metrics but change the context/wording to match the job):
-[city_of_gatineau]
-{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('city_of_gatineau', []))}
-[precision_os]
-{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('precision_os', []))}
-[syntax]
-{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('syntax', []))}
-[uottawa]
-{chr(10).join(f'- {b}' for b in base_resume['bullets'].get('uottawa', []))}
-
-RULES:
-1. Summary: Start with "{clean_title} with 5+ years..." — pack it with job keywords
-2. Skills: REORDER to put job-relevant skills first. If the job mentions WordPress, SEO, WooCommerce — those go first, not React or Spring Boot
-3. Bullets: AGGRESSIVELY rewrite to include job keywords. Replace generic terms with specific ones from the job description. Example: if job says "WordPress" and bullet says "web development tasks", change to "WordPress development tasks"
-4. Keep ALL numbers/metrics (30%, 20%, 50+, 8+, etc.) — these are sacred
-5. Each role: EXACTLY 3 bullets
-6. If a keyword appears 3+ times in the job description, it MUST appear in at least 2 places in the resume
-7. Keys: city_of_gatineau, precision_os, syntax, uottawa
-
-Return ONLY this JSON (no markdown, no backticks):
-{{
-  "summary": "2-3 sentences starting with {clean_title}",
-  "skills": {{
-    "Languages": "most relevant first",
-    "Frontend": "most relevant first",
-    "Backend": "most relevant first",
-    "Databases": "most relevant first",
-    "Cloud & DevOps": "most relevant first",
-    "Tools": "most relevant first",
-    "Spoken Languages": "French (Fluent, C2), English (Fluent, C2)"
-  }},
-  "bullets": {{
-    "city_of_gatineau": ["b1","b2","b3"],
-    "precision_os": ["b1","b2","b3"],
-    "syntax": ["b1","b2","b3"],
-    "uottawa": ["b1","b2","b3"]
-  }},
-  "skills_to_highlight": ["top 3 keywords"]
-}}"""
+    prompt = tailor_template.format(
+        clean_title=clean_title,
+        company=company,
+        job_desc=job_desc[:2500],
+        kw_str=kw_str,
+        missing_str=missing_str,
+        bullets_city_of_gatineau=bullets_city,
+        bullets_precision_os=bullets_pos,
+        bullets_syntax=bullets_syn,
+        bullets_uottawa=bullets_uot,
+    )
 
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a resume expert. Return only valid JSON."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.4, max_tokens=3000,

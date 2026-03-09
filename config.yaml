@@ -56,6 +56,9 @@ search:
     - "Core Code io"
     - "reddit"
     - "DataAnnotation"
+    - "BairesDev"
+    - "Crossing Hurdles"
+    - "Microsoft"
   min_salary_cad: 40000
   max_age_days: 7  # Only fetch jobs posted within this many days
   blocked_countries:
@@ -108,6 +111,8 @@ search:
     - "tashkent"
     - "bolivia"
     - "peru"
+    - "russia"
+    - "poland"
     - "lima"
     - "ecuador"
     - "venezuela"
@@ -117,6 +122,18 @@ search:
     - "cambodia"
     - "phnom penh"
     - "laos"
+    - "brazil"
+
+# ============================================================
+# LINKEDIN AUTH (optional — falls back to guest scraping)
+# ============================================================
+# To get your li_at cookie:
+# 1. Log in to LinkedIn in your browser
+# 2. Open DevTools (F12) → Application → Cookies → linkedin.com
+# 3. Copy the value of the "li_at" cookie
+# Or set the LINKEDIN_LI_AT environment variable in your .env file
+linkedin:
+  li_at: "AQEDATAYwRUFMxFqAAABnMNlYwEAAAGc53HnAU4ATNPflMECMSuYIkxNanr5jMFje5Ss2lz4nDvJUI7lk2-3naWgQzi-GwVtKycXTQBJW9asrjQ6YiqHOg4-xBcfsnSbHKU9PUfacarCkwA2q2ug7W7o"  # Paste your li_at cookie here, or set LINKEDIN_LI_AT in .env
 
 scoring:
   tech_match: 0.35
@@ -168,9 +185,6 @@ profile:
     - "bootstrap"
     - ".net"
     - "azure"
-    - "php"
-    - "wordpress"
-    - "drupal"
     - "c++"
     - "agile"
     - "scrum"

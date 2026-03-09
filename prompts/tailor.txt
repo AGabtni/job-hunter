@@ -1,0 +1,64 @@
+JOB TITLE: {clean_title}
+COMPANY: {company}
+JOB DESCRIPTION:
+{job_desc}
+
+HIGH-FREQUENCY KEYWORDS IN JOB (frequency in parentheses): {kw_str}{missing_str}
+
+CANDIDATE SKILLS (use ONLY these — never invent skills the candidate doesn't have):
+Programming: JavaScript, TypeScript, Python, Java, C++, C#, SQL, PHP
+Frontend: React.js, HTML, CSS, Tailwind, Bootstrap, Responsive Design, WordPress, Drupal, Webflow, WooCommerce, Elementor
+Backend: Node.js, Express, Spring Boot, REST APIs, .NET, PHP
+Databases: PostgreSQL, MongoDB, SQL Server, MySQL
+Cloud/DevOps: Azure, Docker, CI/CD, Git, GitHub, SAP Cloud Platform
+Tools: GitHub Copilot, Jira, Agile/Scrum, Figma, Google Analytics
+CMS: WordPress, Drupal, WooCommerce, SEO, Web Accessibility, WCAG
+Spoken: French (C2), English (C2)
+
+ORIGINAL BULLETS (these describe what the candidate ACTUALLY did — do NOT change the core meaning):
+[city_of_gatineau] — Government IT department: .NET development, AI integration, Jira workflows, staff training
+{bullets_city_of_gatineau}
+[precision_os] — Surgical simulation startup: C++ application systems, build pipelines, onboarding
+{bullets_precision_os}
+[syntax] — Web consultancy: Java/Spring Boot/Node.js client projects, SAP Cloud, REST APIs
+{bullets_syntax}
+[uottawa] — University web team: PHP/JS/Node.js web apps, WordPress/Drupal CMS, data processing
+{bullets_uottawa}
+
+RULES:
+1. Summary: Start with "{clean_title} with 5+ years..." — include job-relevant keywords naturally
+2. Skills: REORDER to put job-relevant skills first. If the job mentions WordPress, SEO, WooCommerce — those go first
+3. Bullets: You may ONLY make these changes to bullets:
+   a) Swap a TECHNOLOGY the candidate actually knows for another equivalent one (e.g. "web development" → "React development" IF the candidate knows React)
+   b) Add a TOOL or TECHNOLOGY from the candidate's skills list at the end of a bullet where it fits naturally
+   c) Slightly rephrase wording to use terminology from the job description
+   YOU MUST NOT:
+   - Change what the company or project actually did (government IT stays government IT, not "risk management")
+   - Invent business domains the candidate never worked in (no "fraud detection", "banking", "e-commerce" unless the original bullet already says it)
+   - Add buzzwords from the job description that change the meaning of the bullet
+   - Fabricate achievements or responsibilities
+4. Keep ALL numbers/metrics (30%, 20%, 50+, 8+, etc.) — these are sacred
+5. Each role: EXACTLY 3 bullets
+6. Add job keywords to the SKILLS section and SUMMARY — that is where keyword stuffing belongs, NOT in bullet points
+7. Keys: city_of_gatineau, precision_os, syntax, uottawa
+
+Return ONLY this JSON (no markdown, no backticks):
+{{
+  "summary": "2-3 sentences starting with {clean_title}",
+  "skills": {{
+    "Languages": "most relevant first",
+    "Frontend": "most relevant first",
+    "Backend": "most relevant first",
+    "Databases": "most relevant first",
+    "Cloud & DevOps": "most relevant first",
+    "Tools": "most relevant first",
+    "Spoken Languages": "French (Fluent, C2), English (Fluent, C2)"
+  }},
+  "bullets": {{
+    "city_of_gatineau": ["b1","b2","b3"],
+    "precision_os": ["b1","b2","b3"],
+    "syntax": ["b1","b2","b3"],
+    "uottawa": ["b1","b2","b3"]
+  }},
+  "skills_to_highlight": ["top 3 keywords"]
+}}

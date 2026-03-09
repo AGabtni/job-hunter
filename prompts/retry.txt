@@ -1,0 +1,7 @@
+
+CRITICAL — PREVIOUS ATTEMPT FAILED ATS CHECK. These keywords were MISSING from the resume and MUST be added:
+{missing_keywords}
+
+You MUST incorporate each of these keywords somewhere in the resume (summary or skills section).
+If a keyword is a technology the candidate knows, add it to the skills section.
+Do NOT force keywords into bullet points by changing what the candidate actually did.
