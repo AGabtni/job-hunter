@@ -7,12 +7,11 @@ HIGH-FREQUENCY KEYWORDS IN JOB (frequency in parentheses): {kw_str}{missing_str}
 
 CANDIDATE SKILLS (use ONLY these — never invent skills the candidate doesn't have):
 Programming: JavaScript, TypeScript, Python, Java, C++, C#, SQL, PHP
-Frontend: React.js, HTML, CSS, Tailwind, Bootstrap, Responsive Design, WordPress, Drupal, Webflow, WooCommerce, Elementor
+Frontend: React.js, HTML, CSS, Tailwind, Bootstrap, Responsive Design
 Backend: Node.js, Express, Spring Boot, REST APIs, .NET, PHP
 Databases: PostgreSQL, MongoDB, SQL Server, MySQL
 Cloud/DevOps: Azure, Docker, CI/CD, Git, GitHub, SAP Cloud Platform
 Tools: GitHub Copilot, Jira, Agile/Scrum, Figma, Google Analytics
-CMS: WordPress, Drupal, WooCommerce, SEO, Web Accessibility, WCAG
 Spoken: French (C2), English (C2)
 
 ORIGINAL BULLETS (these describe what the candidate ACTUALLY did — do NOT change the core meaning):
@@ -27,7 +26,7 @@ ORIGINAL BULLETS (these describe what the candidate ACTUALLY did — do NOT chan
 
 RULES:
 1. Summary: Start with "{clean_title} with 5+ years..." — include job-relevant keywords naturally
-2. Skills: REORDER to put job-relevant skills first. If the job mentions WordPress, SEO, WooCommerce — those go first
+2. Skills: REORDER to put job-relevant skills first. If the job mentions .NET, JavaScript, C# — those go first
 3. Bullets: You may ONLY make these changes to bullets:
    a) Swap a TECHNOLOGY the candidate actually knows for another equivalent one (e.g. "web development" → "React development" IF the candidate knows React)
    b) Add a TOOL or TECHNOLOGY from the candidate's skills list at the end of a bullet where it fits naturally

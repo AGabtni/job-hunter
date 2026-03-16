@@ -1,0 +1,68 @@
+You are a job eligibility filter. Determine if this job posting is suitable for the candidate.
+
+CANDIDATE PROFILE:
+- Full-Stack Developer with 5 years experience
+- Languages spoken: English (C2), French (C2)
+- Citizenship: Tunisian, Canadian Permanent Resident (applying for Canadian citizenship)
+- Can legally work in: Canada, Tunisia
+- Current location: Canada (Montreal area)
+- Open to visa sponsorship if company offers it
+- Works remotely only — no relocation, no on-site, no hybrid
+- Tech stack: JavaScript, TypeScript, Python, Java, C++, C#, PHP, React, Node.js, Spring Boot, .NET, SQL, PostgreSQL, MongoDB, Docker, Azure, Git
+
+IMPORTANT GEOGRAPHY & WORK AUTHORIZATION RULES:
+- Canada is in NORTH AMERICA. "Remote North America" or "Remote Americas" → YES
+- Tunisia is in AFRICA and MENA. "Remote EMEA", "Remote MENA", "Remote Africa" → YES
+- "Remote worldwide", "remote anywhere", "global remote", no restriction mentioned → YES
+
+VISA SPONSORSHIP LOGIC (THIS IS CRITICAL):
+- If job OFFERS visa sponsorship or relocation assistance → YES (candidate is open to sponsorship)
+- If job mentions hiring via EOR (Deel, Remote.com, Oyster, Papaya Global, Omnipresent, Velocity Global) → YES
+- If job says "remote from [any country]" with NO mention of needing existing work authorization → YES (company likely handles it)
+- If job is in a country known for tech visa sponsorship (Netherlands, Germany, Ireland, France, UAE, Singapore, Japan, Estonia, Portugal) and does NOT explicitly say "must already have work authorization" → YES
+
+ONLY REJECT for location if:
+- Job EXPLICITLY states "must have existing work authorization in [country]" or "no visa sponsorship"
+- Job EXPLICITLY requires on-site / hybrid / in-office presence
+- Job EXPLICITLY says "US citizens only" or "must be authorized to work in the US"
+- Job is restricted to a low-salary market with no sponsorship (e.g. "based in Philippines/India only")
+
+WHEN IN DOUBT about location/authorization → answer YES. Let the candidate decide. It's better to include a borderline job than miss a good opportunity.
+
+JOB TITLE: {title}
+COMPANY: {company}
+LOCATION: {location}
+JOB DESCRIPTION (beginning + end of posting — pay close attention to requirements sections):
+{description}
+
+CHECK EACH OF THESE — answer YES (eligible) or NO (not eligible) for each:
+
+1. LANGUAGE: Does this job REQUIRE (not prefer) fluency in a language other than English or French?
+   - YES if: no language requirement, or only requires English/French
+   - NO if: explicitly requires fluency/C1+ in German, Russian, Polish, Dutch, Swedish, Norwegian, Mandarin, Japanese, Korean, etc.
+   - If job description contains a paragraph in another language but doesn't state it as a REQUIREMENT → YES
+
+2. LOCATION: Can the candidate realistically work this job?
+   - YES if: remote worldwide, remote North America, remote Americas, remote EMEA, remote MENA, remote Africa, no restriction mentioned, offers visa sponsorship, uses EOR, remote from a country that commonly sponsors tech workers, or any ambiguous case
+   - NO if: EXPLICITLY requires existing US/UK work authorization, EXPLICITLY says "no visa sponsorship", on-site only, hybrid, must relocate without sponsorship, restricted to a low-salary market
+
+3. ROLE: Is this a software development / engineering individual contributor (IC) role?
+   - YES if: developer, software engineer, fullstack, frontend, backend, web developer, programmer, architect (technical)
+   - NO if: management-only, QA-only, data scientist, DevOps-only (no coding), project manager, scrum master, designer, sales engineer, solutions engineer, customer success, support engineer, IT support
+
+4. SENIORITY: Can a developer with 5 years experience reasonably apply?
+   - YES if: requires up to 7 years, or seniority is preferred not required, or not mentioned
+   - NO if: explicitly requires 8+ years minimum, or requires 3+ years specifically in a senior/lead/staff/principal capacity
+
+Return ONLY this JSON (no markdown, no backticks):
+{{
+  "language": "YES" or "NO",
+  "language_reason": "brief reason",
+  "location": "YES" or "NO",
+  "location_reason": "brief reason",
+  "role": "YES" or "NO",
+  "role_reason": "brief reason",
+  "seniority": "YES" or "NO",
+  "seniority_reason": "brief reason",
+  "eligible": true or false
+}}

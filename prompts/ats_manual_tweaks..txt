@@ -7,6 +7,11 @@ You are an ATS optimization expert. I will give you a job description and my res
 * Do not fabricate experience or tools not implied by the existing resume
 * Preserve the candidate's voice and tone
 * Prioritize exact keyword matches over paraphrasing when possible
+N.B : For the Professional Summary specifically:
+* Keep it short and punchy, no corporate fluff
+* Only include skills and experience I actually have
+* End with my personality/work style in my own voice: I adapt fast, I look for challenges, I like getting out of my comfort zone, and I make a point of bringing others along when I figure something out
+* No em dashes
 
 Resume is attached. 
 

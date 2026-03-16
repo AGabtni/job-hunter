@@ -15,6 +15,13 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+# Load .env ONCE at startup — all modules inherit via os.environ
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from job_schema import save_jobs, load_jobs
 
 logger = logging.getLogger(__name__)

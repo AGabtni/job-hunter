@@ -51,6 +51,9 @@ search:
     - "firmware"
     - "hardware"
     - "mobile developer"
+    - "mobile software engineer"
+    - "data engineer"
+
   exclude_companies:
     - "twine"
     - "Core Code io"
@@ -59,8 +62,20 @@ search:
     - "BairesDev"
     - "Crossing Hurdles"
     - "Microsoft"
+    - "Stripe"
+    - "Code Compass"
+    - "Shakers"
+    - "Get Offers"
+    - "Lemon.io"
+    - "Proxify"
+    - "Haystack"
+    - "Nango"
+    - "Cast AI"
+    - "Mercor"
+
   min_salary_cad: 40000
   max_age_days: 7  # Only fetch jobs posted within this many days
+  llm_filter: true  # Use GPT to filter out ineligible jobs (language, location, role, seniority)
   blocked_countries:
     # Low-salary markets — jobs geo-locked here pay below target
     - "philippines"
@@ -123,17 +138,6 @@ search:
     - "phnom penh"
     - "laos"
     - "brazil"
-
-# ============================================================
-# LINKEDIN AUTH (optional — falls back to guest scraping)
-# ============================================================
-# To get your li_at cookie:
-# 1. Log in to LinkedIn in your browser
-# 2. Open DevTools (F12) → Application → Cookies → linkedin.com
-# 3. Copy the value of the "li_at" cookie
-# Or set the LINKEDIN_LI_AT environment variable in your .env file
-linkedin:
-  li_at: "AQEDATAYwRUFMxFqAAABnMNlYwEAAAGc53HnAU4ATNPflMECMSuYIkxNanr5jMFje5Ss2lz4nDvJUI7lk2-3naWgQzi-GwVtKycXTQBJW9asrjQ6YiqHOg4-xBcfsnSbHKU9PUfacarCkwA2q2ug7W7o"  # Paste your li_at cookie here, or set LINKEDIN_LI_AT in .env
 
 scoring:
   tech_match: 0.35

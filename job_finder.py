@@ -15,14 +15,18 @@ Pipeline:
 """
 
 import re
-import os
 import json
 import yaml
 import logging
 import argparse
+import unicodedata
+
 from pathlib import Path
 
 from scrapers.remoteok import scrape_remoteok
+from scrapers.himalayas import scrape_himalayas
+from scrapers.workingnomads import scrape_workingnomads
+from job_filter_llm import filter_jobs as llm_filter_jobs
 from scrapers.linkedin import scrape_linkedin
 from scrapers.arbeitnow import scrape_arbeitnow
 from scrapers.remotive import scrape_remotive
@@ -88,11 +92,12 @@ def _scrape_all(config: dict) -> list[dict]:
     max_age = search.get("max_age_days", 7)
     all_jobs = []
     all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
-    li_at = config.get("linkedin", {}).get("li_at", "") or os.environ.get("LINKEDIN_LI_AT", "")
-    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age, li_at=li_at))
+    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
     all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_himalayas(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_workingnomads(titles, exclude, blocked_countries=blocked))
     logger.info(f"Total scraped: {len(all_jobs)}")
     return all_jobs
 
@@ -114,6 +119,15 @@ def _deduplicate(jobs, seen):
     return unique
 
 
+
+def normalize_company(name: str) -> str:
+    if not name:
+        return ""
+    name = unicodedata.normalize("NFKD", name)
+    name = re.sub(r"[^\w\s]", "", name)
+    name = re.sub(r"\s+", " ", name).strip().lower()
+    return name
+
 def _filter_jobs(jobs, config):
     exclude_companies = [c.lower().strip() for c in config.get("search", {}).get("exclude_companies", []) if c.strip()]
     
@@ -128,12 +142,13 @@ def _filter_jobs(jobs, config):
     filtered = []
     for job in jobs:
         desc_lower = job.get("description", "").lower()
-        company_lower = job.get("company", "").lower()
         location_lower = job.get("location", "").lower()
         
-        # Company exclusion
-        if exclude_companies and any(ec in company_lower for ec in exclude_companies):
-            logger.debug(f"Skipping (excluded company): {job.get('company', '?')}")
+        # Company 
+        company = job.get("company", "")
+        company_norm = normalize_company(company)
+        if exclude_companies and any(normalize_company(ec) in company_norm for ec in exclude_companies):
+            logger.debug(f"Skipping (excluded company): {company}")
             continue
         
         # Language check
@@ -231,6 +246,9 @@ def find_jobs(config: dict, seen: set = None) -> list[dict]:
     raw = _scrape_all(config)
     unique = _deduplicate(raw, seen or set())
     filtered = _filter_jobs(unique, config)
+    # LLM-based filter: checks language, location, role relevance, seniority
+    if config.get("search", {}).get("llm_filter", True):
+        filtered = llm_filter_jobs(filtered)
     return _score_jobs(filtered, config)
 
 
