@@ -40,7 +40,7 @@ def _smart_truncate(description: str, max_chars: int = 3000) -> str:
     return start + "\n[...truncated...]\n" + end
 
 
-def filter_job(job: dict) -> dict:
+def filter_job(job: dict, config: dict = None) -> dict:
     """
     Check if a job is eligible using LLM.
     Returns dict with 'eligible' (bool), per-check results, and reasons.
@@ -63,16 +63,48 @@ def filter_job(job: dict) -> dict:
         # No description to analyze — let it through
         return {"eligible": True, "reason": "no_description"}
 
+    # Extract from config with defaults
+    config = config or {}
+    profile = config.get("profile", {})
+    
+    # Profile data
+    current_role = profile.get("current_role", "Full-Stack Developer")
+    years_experience = profile.get("years_experience", 5)
+    languages = ", ".join(profile.get("languages", ["English (C2)", "French (C2)"]))
+    citizenship = profile.get("citizenship", "Unknown")
+    work_legally_in = ", ".join(profile.get("work_legally_in", ["Canada", "Tunisia"]))
+    current_location = profile.get("current_location", "Unknown")
+    open_to_sponsorship = "Yes" if profile.get("open_to_sponsorship", True) else "No"
+    remote_only = profile.get("remote_only", True)
+    remote_preference = "Remote only — no relocation, no on-site, no hybrid" if remote_only else "Open to hybrid/on-site"
+    
+    # Tech stack from core_skills and secondary_skills
+    core_skills = profile.get("core_skills", [])
+    secondary_skills = profile.get("secondary_skills", [])
+    tech_stack = ", ".join(core_skills[:15]) if core_skills else "JavaScript, TypeScript, React, Node.js, Python, Java"
+    
+    # Model
+    model = config.get("llm", {}).get("filter_model", "gpt-4o-mini")
+
     prompt = template.format(
         title=job.get("title", "Unknown"),
         company=job.get("company", "Unknown"),
         location=job.get("location", "Unknown"),
         description=_smart_truncate(description),
+        current_role=current_role,
+        years_experience=years_experience,
+        languages=languages,
+        citizenship=citizenship,
+        work_legally_in=work_legally_in,
+        current_location=current_location,
+        open_to_sponsorship=open_to_sponsorship,
+        remote_preference=remote_preference,
+        tech_stack=tech_stack,
     )
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a job eligibility filter. Return only valid JSON."},
                 {"role": "user", "content": prompt},
@@ -103,7 +135,7 @@ def filter_job(job: dict) -> dict:
         return {"eligible": True, "error": str(e)}
 
 
-def filter_jobs(jobs: list[dict]) -> list[dict]:
+def filter_jobs(jobs: list[dict], config: dict = None) -> list[dict]:
     """
     Filter a list of jobs using LLM. Returns only eligible jobs.
     Logs reasons for each rejected job.
@@ -121,7 +153,7 @@ def filter_jobs(jobs: list[dict]) -> list[dict]:
     rejected = 0
 
     for job in jobs:
-        result = filter_job(job)
+        result = filter_job(job, config)
 
         if result.get("eligible", True):
             eligible.append(job)

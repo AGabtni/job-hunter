@@ -53,7 +53,6 @@ search:
     - "data engineer"
     - "ruby on rails"
     - "golang"
-
   exclude_companies:
     - "twine"
     - "Core Code io"
@@ -71,7 +70,6 @@ search:
     - "Mercor"
     - "ELECTE S.R.L."
     - "Deel"
-
   min_salary_cad: 80000
   max_age_days: 7
   llm_filter: true
@@ -143,6 +141,13 @@ scoring:
   title_match: 0.20
 
 # ============================================================
+# LLM SETTINGS
+# ============================================================
+llm:
+  filter_model: "gpt-4o-mini"      # Model for job filtering (gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo)
+  tailor_model: "gpt-4o-mini"      # Model for resume tailoring (gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo)
+
+# ============================================================
 # RESUME GENERATOR CONFIG
 # ============================================================
 tailoring:
@@ -162,6 +167,14 @@ profile:
   email: "ahmed.gabtni.dev@gmail.com"
   linkedin: "https://www.linkedin.com/in/ahmed-gabtni"
   years_experience: 5
+  current_role: "Full-Stack Developer"
+  citizenship: "Tunisian, Canadian Permanent Resident (applying for Canadian citizenship)"
+  work_legally_in:
+    - "Canada"
+    - "Tunisia"
+  current_location: "Canada (Montreal area)"
+  open_to_sponsorship: true
+  remote_only: true  # no relocation, no on-site, no hybrid
   languages:
     - "French (C2)"
     - "English (C2)"

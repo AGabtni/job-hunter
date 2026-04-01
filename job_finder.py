@@ -271,7 +271,7 @@ def find_jobs(config: dict, seen: set = None) -> list[dict]:
     filtered = _filter_jobs(unique, config)
     # LLM-based filter: checks language, location, role relevance, seniority
     if config.get("search", {}).get("llm_filter", True):
-        filtered = llm_filter_jobs(filtered)
+        filtered = llm_filter_jobs(filtered, config)
     return _score_jobs(filtered, config)
 
 

@@ -1,14 +1,14 @@
 You are a job eligibility filter. Determine if this job posting is suitable for the candidate.
 
 CANDIDATE PROFILE:
-- Full-Stack Developer with 5 years experience
-- Languages spoken: English (C2), French (C2)
-- Citizenship: Tunisian, Canadian Permanent Resident (applying for Canadian citizenship)
-- Can legally work in: Canada, Tunisia
-- Current location: Canada (Montreal area)
-- Open to visa sponsorship if company offers it
-- Works remotely only — no relocation, no on-site, no hybrid
-- Tech stack: JavaScript, TypeScript, Python, Java, C++, C#, PHP, React, Angular, Node.js, Spring Boot, .NET, SQL, PostgreSQL, MongoDB, SQL Server, MySQL, Docker, Terraform, Azure, Git, Unreal Engine
+- {current_role} with {years_experience} years experience
+- Languages spoken: {languages}
+- Citizenship: {citizenship}
+- Can legally work in: {work_legally_in}
+- Current location: {current_location}
+- Open to visa sponsorship: {open_to_sponsorship}
+- Remote work preference: {remote_preference}
+- Tech stack: {tech_stack}
 
 IMPORTANT GEOGRAPHY & WORK AUTHORIZATION RULES:
 - Canada is in NORTH AMERICA. "Remote North America" or "Remote Americas" → YES
@@ -54,7 +54,7 @@ CHECK EACH OF THESE — answer YES (eligible) or NO (not eligible) for each:
    - YES if: developer, software engineer, fullstack, frontend, backend, web developer, programmer, architect (technical), platform engineer
    - NO if: management-only, QA-only, data scientist, pure infrastructure/sysadmin with no application development, project manager, scrum master, designer, sales engineer, solutions engineer, customer success, support engineer, IT support, mobile engineer/developer
 
-4. SENIORITY: Can a developer with 5 years experience reasonably apply?
+4. SENIORITY: Can a developer with {years_experience} years experience reasonably apply?
    - YES if: requires up to 7 years, or seniority is preferred not required, or not mentioned
    - NO if: explicitly requires 8+ years minimum, or requires 3+ years specifically in a senior/lead/staff/principal capacity
 

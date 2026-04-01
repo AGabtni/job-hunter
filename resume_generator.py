@@ -256,9 +256,12 @@ def tailor_for_job(job: dict, config: dict, missing_keywords: list[str] = None) 
         bullets_uottawa=bullets_uot,
     )
 
+    # Get model from config
+    model = config.get("llm", {}).get("tailor_model", "gpt-4o-mini")
+
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
