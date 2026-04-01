@@ -2,55 +2,62 @@ JOB TITLE: {clean_title}
 COMPANY: {company}
 JOB DESCRIPTION:
 {job_desc}
-
 HIGH-FREQUENCY KEYWORDS IN JOB (frequency in parentheses): {kw_str}{missing_str}
-
 CANDIDATE SKILLS (use ONLY these — never invent skills the candidate doesn't have):
-Programming: JavaScript, TypeScript, Python, Java, C++, C#, SQL, PHP
-Frontend: React.js, HTML, CSS, Tailwind, Bootstrap, Responsive Design
-Backend: Node.js, Express, Spring Boot, REST APIs, .NET, PHP
+Languages: JavaScript, TypeScript, Python, Java, C++, C#, SQL
+Frontend: React, Angular, HTML/CSS, Tailwind
+Backend: Node.js, Spring Boot, .NET, REST APIs
 Databases: PostgreSQL, MongoDB, SQL Server, MySQL
-Cloud/DevOps: Azure, Docker, CI/CD, Git, GitHub, SAP Cloud Platform
-Tools: GitHub Copilot, Jira, Agile/Scrum, Figma, Google Analytics
+Infrastructure: Docker, Terraform, Azure DevOps, CI/CD, Git
+Other: Unreal Engine, SAP Cloud Platform, Bash, PowerShell, WordPress, Drupal, LLM/AI integration
 Spoken: French (C2), English (C2)
 
-ORIGINAL BULLETS (these describe what the candidate ACTUALLY did — do NOT change the core meaning):
-[city_of_gatineau] — Government IT department: .NET development, AI integration, Jira workflows, staff training
+CANDIDATE SUMMARY TEMPLATE (adapt to match job keywords but keep the core message):
+"Full-Stack Developer with 5+ years of experience building production systems with React, TypeScript, Node.js, .NET, and Spring Boot across government, healthcare, and enterprise consulting. Comfortable working across the entire stack from PostgreSQL and MongoDB databases to Docker and Terraform infrastructure. Quick to adapt to new technologies and business domains, driven by complex technical challenges, and passionate about mentoring teammates and sharing knowledge."
+
+ORIGINAL BULLETS (these describe what the candidate ACTUALLY did — with real verified metrics. Do NOT change metrics or core facts):
+
+[city_of_gatineau] — Municipal government: real-time election platform (.NET, React, TypeScript, SQL Server, 19 districts, 82K+ voters), LLM-powered permit system (311K+ residents, ~500 requests/month), CI/CD modernization (Azure DevOps, Docker, Terraform), AI training for staff
 {bullets_city_of_gatineau}
-[precision_os] — Surgical simulation startup: C++ application systems, build pipelines, onboarding
+
+[precision_os] — VR surgical simulation startup: shipped 2 VR surgical sims in Unreal/C++ (65+ institutions, 55+ countries), multiplayer networking, metrics dashboard (TypeScript, Angular, REST API), C++ component templating. Led one module with a direct report.
 {bullets_precision_os}
-[syntax] — Web consultancy: Java/Spring Boot/Node.js client projects, SAP Cloud, REST APIs
+
+[syntax] — Consulting firm: contractor payment platform (Java, Spring Boot, React, JavaScript, PostgreSQL, approval workflows, document generation), 3 warehouse management systems (Java, SAP Cloud), delivered 4 client projects simultaneously
 {bullets_syntax}
-[uottawa] — University web team: PHP/JS/Node.js web apps, WordPress/Drupal CMS, data processing
+
+[uottawa] — University web dev team: research tools (Python data viz, JavaScript, Node.js, MongoDB, showcase sites, annotation portals), 20+ CMS templates (WordPress/Drupal), Python/JS automation scripts
 {bullets_uottawa}
 
 RULES:
-1. Summary: Start with "{clean_title} with 5+ years..." — include job-relevant keywords naturally
+1. Summary: Adapt the candidate summary template to lead with job-relevant keywords while keeping the core message about adaptability, challenge-seeking, and mentoring
 2. Skills: REORDER to put job-relevant skills first. If the job mentions .NET, JavaScript, C# — those go first
 3. Bullets: You may ONLY make these changes to bullets:
-   a) Swap a TECHNOLOGY the candidate actually knows for another equivalent one (e.g. "web development" → "React development" IF the candidate knows React)
+   a) Swap a TECHNOLOGY the candidate actually knows for another equivalent one (e.g. "web applications" → "React applications" IF the job asks for React and the candidate knows React)
    b) Add a TOOL or TECHNOLOGY from the candidate's skills list at the end of a bullet where it fits naturally
    c) Slightly rephrase wording to use terminology from the job description
+   d) Every bullet MUST remain a single sentence — no periods splitting into multiple sentences, no semicolons separating clauses
    YOU MUST NOT:
-   - Change what the company or project actually did (government IT stays government IT, not "risk management")
-   - Invent business domains the candidate never worked in (no "fraud detection", "banking", "e-commerce" unless the original bullet already says it)
+   - Change any numbers or metrics (82,000+ voters, 19 districts, 65+ institutions, 55+ countries, 311,500+ residents, 500 requests/month, 20+ CMS templates — these are ALL real and sacred)
+   - Change what the company or project actually did
+   - Invent business domains the candidate never worked in
    - Add buzzwords from the job description that change the meaning of the bullet
    - Fabricate achievements or responsibilities
-4. Keep ALL numbers/metrics (30%, 20%, 50+, 8+, etc.) — these are sacred
-5. Each role: EXACTLY 3 bullets
-6. Add job keywords to the SKILLS section and SUMMARY — that is where keyword stuffing belongs, NOT in bullet points
-7. Keys: city_of_gatineau, precision_os, syntax, uottawa
+   - Add fake percentage improvements (no "reduced X by Y%" unless it already exists in the bullet)
+4. Each role: Pick the best 3 bullets (some roles have 4 available). Choose the 3 most relevant to the job posting.
+5. Add job keywords to the SKILLS section and SUMMARY — that is where keyword matching belongs, NOT in bullet fabrication
+6. Keys: city_of_gatineau, precision_os, syntax, uottawa
 
 Return ONLY this JSON (no markdown, no backticks):
 {{
-  "summary": "2-3 sentences starting with {clean_title}",
+  "summary": "2-3 sentences starting with {clean_title}, adapt template to job keywords, keep adaptability/challenge/mentoring message",
   "skills": {{
     "Languages": "most relevant first",
     "Frontend": "most relevant first",
     "Backend": "most relevant first",
     "Databases": "most relevant first",
-    "Cloud & DevOps": "most relevant first",
-    "Tools": "most relevant first",
+    "Infrastructure": "most relevant first",
+    "Other": "most relevant first",
     "Spoken Languages": "French (Fluent, C2), English (Fluent, C2)"
   }},
   "bullets": {{

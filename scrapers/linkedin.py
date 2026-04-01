@@ -191,7 +191,7 @@ def scrape_linkedin(titles: list[str], locations: list[str], exclude_keywords: l
         if rate_limited:
             break
 
-        for start in [0, 25, 50]:  # 3 pages per query
+        for start in [0, 25, 50, 75, 100]:  # 3 pages per query
             try:
                 if start == 0:
                     logger.info(f"LinkedIn search: '{query}'")

@@ -37,19 +37,40 @@ BASE_DIR = Path(__file__).parent
 
 
 # --- Language detection ---
-LANGUAGE_PATTERNS = {
-    "German": ["arbeiten", "erfahrung", "kenntnisse", "anforderungen", "aufgaben",
-               "bewerbung", "unternehmen", "stellenangebot", "verantwortung",
-               "entwicklung", "mindestens", "berufserfahrung", "und", "oder", "wir suchen"],
-    "Spanish": ["experiencia", "requisitos", "responsabilidades", "conocimientos",
-                "empresa", "desarrollo", "habilidades", "trabajar", "buscamos"],
-    "Portuguese": ["experiência", "requisitos", "responsabilidades", "conhecimentos",
-                   "empresa", "desenvolvimento", "habilidades", "trabalhar"],
-    "Dutch": ["ervaring", "vereisten", "verantwoordelijkheden", "kennis",
-              "bedrijf", "ontwikkeling", "vaardigheden", "werken"],
-    "Italian": ["esperienza", "requisiti", "responsabilità", "conoscenze",
-                "azienda", "sviluppo", "competenze", "lavorare"],
-}
+ENGLISH_MARKERS = [
+    # Articles / pronouns / prepositions
+    "the", "and", "with", "you", "will", "our", "are", "for", "this", "that",
+    "have", "from", "been", "not", "but", "can", "has", "was", "who", "all",
+    "your", "their", "they", "also", "would", "should", "could", "into",
+    "more", "than", "other", "some", "what", "when", "which", "each",
+    "must", "may", "any", "how", "own", "both", "well", "very",
+    # Job posting vocabulary
+    "experience", "team", "work", "about", "role", "requirements", "ability",
+    "skills", "responsibilities", "apply", "looking", "join", "including",
+    "across", "building", "working", "strong", "using", "develop", "ensure",
+    "manage", "support", "provide", "maintain", "create", "design", "lead",
+    "opportunity", "company", "position", "candidate", "salary", "benefits",
+    "remote", "hybrid", "years", "knowledge", "understanding", "proficiency",
+    "collaborate", "implement", "deliver", "contribute", "environment",
+    "software", "engineer", "developer", "technical", "stack", "tools",
+    "data", "code", "testing", "deployment", "infrastructure", "production",
+    "frontend", "backend", "fullstack", "database", "cloud", "platform",
+]
+FRENCH_MARKERS = [
+    # Articles / pronouns / prepositions
+    "les", "des", "une", "est", "dans", "pour", "avec", "sur", "qui", "nous",
+    "vous", "sont", "par", "pas", "tout", "cette", "mais", "ses", "aux",
+    "notre", "votre", "ces", "ont", "peut", "aussi", "plus", "entre",
+    "être", "avoir", "faire", "comme", "très", "chez", "tous", "bien",
+    "sans", "sous", "vers", "donc", "leur", "même", "elle", "autres",
+    # Job posting vocabulary
+    "expérience", "équipe", "poste", "recherche", "compétences", "capacité",
+    "responsabilités", "postuler", "rejoindre", "développement", "assurer",
+    "entreprise", "candidat", "salaire", "avantages", "télétravail",
+    "logiciel", "ingénieur", "développeur", "technique", "outils",
+    "concevoir", "contribuer", "environnement", "connaissance", "maîtrise",
+    "gestion", "projet", "données", "infrastructure", "production",
+]
 
 LOCATION_EXCLUSION_RE = re.compile(
     r'|'.join([
@@ -91,33 +112,38 @@ def _scrape_all(config: dict) -> list[dict]:
     blocked = [c.lower().strip() for c in search.get("blocked_countries", []) if c.strip()]
     max_age = search.get("max_age_days", 7)
     all_jobs = []
-    all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
-    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
-    all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
-    all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
-    all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
+    #all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
+    #all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
+    #all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
+    #all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
+    #all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_himalayas(titles, exclude, blocked_countries=blocked))
-    all_jobs.extend(scrape_workingnomads(titles, exclude, blocked_countries=blocked))
+    #all_jobs.extend(scrape_workingnomads(titles, exclude, blocked_countries=blocked))
     logger.info(f"Total scraped: {len(all_jobs)}")
     return all_jobs
 
 
 def _deduplicate(jobs, seen):
-    unique, urls, signatures = [], set(), set()
+    seen_urls = seen.get("urls", set()) if isinstance(seen, dict) else seen
+    seen_companies = seen.get("companies", set()) if isinstance(seen, dict) else set()
+    unique, urls, sigs = [], set(), set()
     for job in jobs:
         url = job.get("url", "")
-        if not url or url in urls or url in seen:
+        if not url or url in urls or url in seen_urls:
             continue
-        # Also dedup by company + title (same job on different boards)
-        sig = f"{job.get('company', '').lower().strip()}|{job.get('title', '').lower().strip()}"
-        if sig in signatures:
+        # Skip companies we already processed
+        company = job.get("company", "").lower().strip()
+        if company and company in seen_companies:
+            continue
+        # Dedup within this batch by company + title
+        sig = f"{company}|{job.get('title', '').lower().strip()}"
+        if sig in sigs:
             continue
         urls.add(url)
-        signatures.add(sig)
+        sigs.add(sig)
         unique.append(job)
     logger.info(f"After dedup: {len(unique)} new ({len(jobs) - len(unique)} removed)")
     return unique
-
 
 
 def normalize_company(name: str) -> str:
@@ -151,14 +177,11 @@ def _filter_jobs(jobs, config):
             logger.debug(f"Skipping (excluded company): {company}")
             continue
         
-        # Language check
-        skip = False
-        for lang, patterns in LANGUAGE_PATTERNS.items():
-            if sum(1 for p in patterns if p in desc_lower) >= 5:
-                logger.debug(f"Skipping ({lang}): {job.get('title', '?')}")
-                skip = True
-                break
-        if skip:
+        # Language check — reject if description has no meaningful English or French content
+        en = sum(1 for w in ENGLISH_MARKERS if f" {w} " in f" {desc_lower} ")
+        fr = sum(1 for w in FRENCH_MARKERS if f" {w} " in f" {desc_lower} ")
+        if en < 5 and fr < 5:
+            logger.debug(f"Skipping (non-English/French): {job.get('title', '?')}")
             continue
         
         # Description-level location check (catches "US only", "EU work permit required", etc.)
@@ -263,11 +286,17 @@ def main():
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
-    seen = set()
+    seen = {"urls": set(), "companies": set()}
     history = Path(args.output).parent / "seen_jobs.json"
     if not args.no_history and history.exists():
-        seen = set(json.load(open(history)))
-        logger.info(f"Loaded {len(seen)} seen jobs")
+        with open(history) as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            seen["urls"] = set(data)
+        else:
+            seen["urls"] = set(data.get("urls", []))
+            seen["companies"] = set(data.get("companies", []))
+        logger.info(f"Loaded {len(seen['urls'])} URLs, {len(seen['companies'])} companies")
 
     jobs = find_jobs(config, seen)
 
@@ -278,9 +307,12 @@ def main():
     if not args.no_history:
         for j in jobs:
             if j.get("url"):
-                seen.add(j["url"])
+                seen["urls"].add(j["url"])
+            company = j.get("company", "").lower().strip()
+            if company:
+                seen["companies"].add(company)
         with open(history, "w") as f:
-            json.dump(list(seen), f)
+            json.dump({"urls": list(seen["urls"]), "companies": sorted(seen["companies"])}, f)
 
     logger.info(f"Found {len(jobs)} jobs -> {args.output}")
     for j in jobs[:5]:

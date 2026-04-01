@@ -90,12 +90,18 @@ def main():
             # Full scrape pipeline
             from job_finder import find_jobs
 
-            seen = set()
+            seen = {"urls": set(), "companies": set()}
             history_path = output_dir / "seen_jobs.json"
             if not args.no_history and history_path.exists():
                 with open(history_path) as f:
-                    seen = set(json.load(f))
-                logger.info(f"Previously seen: {len(seen)} jobs")
+                    data = json.load(f)
+                # Backwards compatible: old format was a flat list of URLs
+                if isinstance(data, list):
+                    seen["urls"] = set(data)
+                else:
+                    seen["urls"] = set(data.get("urls", []))
+                    seen["companies"] = set(data.get("companies", []))
+                logger.info(f"Previously seen: {len(seen['urls'])} URLs, {len(seen['companies'])} companies")
 
             jobs = find_jobs(config, seen=seen)
 
@@ -103,9 +109,12 @@ def main():
             if not args.no_history and jobs:
                 for j in jobs:
                     if j.get("url"):
-                        seen.add(j["url"])
+                        seen["urls"].add(j["url"])
+                    company = j.get("company", "").lower().strip()
+                    if company:
+                        seen["companies"].add(company)
                 with open(history_path, "w") as f:
-                    json.dump(list(seen), f)
+                    json.dump({"urls": list(seen["urls"]), "companies": sorted(seen["companies"])}, f)
 
     if not jobs:
         logger.info("No jobs found. Exiting.")

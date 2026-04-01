@@ -8,7 +8,7 @@ CANDIDATE PROFILE:
 - Current location: Canada (Montreal area)
 - Open to visa sponsorship if company offers it
 - Works remotely only — no relocation, no on-site, no hybrid
-- Tech stack: JavaScript, TypeScript, Python, Java, C++, C#, PHP, React, Node.js, Spring Boot, .NET, SQL, PostgreSQL, MongoDB, Docker, Azure, Git
+- Tech stack: JavaScript, TypeScript, Python, Java, C++, C#, PHP, React, Angular, Node.js, Spring Boot, .NET, SQL, PostgreSQL, MongoDB, SQL Server, MySQL, Docker, Terraform, Azure, Git, Unreal Engine
 
 IMPORTANT GEOGRAPHY & WORK AUTHORIZATION RULES:
 - Canada is in NORTH AMERICA. "Remote North America" or "Remote Americas" → YES
@@ -37,18 +37,22 @@ JOB DESCRIPTION (beginning + end of posting — pay close attention to requireme
 
 CHECK EACH OF THESE — answer YES (eligible) or NO (not eligible) for each:
 
-1. LANGUAGE: Does this job REQUIRE (not prefer) fluency in a language other than English or French?
-   - YES if: no language requirement, or only requires English/French
+1. LANGUAGE: First, determine what language the job description is WRITTEN IN. Then check for explicit language requirements.
+   Step A — What language is the description written in? THIS STEP IS MANDATORY. DO NOT SKIP IT.
+   - If 80%+ of the description is in a language OTHER than English or French (e.g. German, Dutch, Spanish, Portuguese, Japanese, Korean, Mandarin, Russian, Polish, Swedish, etc.) → answer NO immediately. A posting written entirely in German means the team works in German. Do not answer YES just because no explicit language requirement is stated.
+   - If the description is bilingual (e.g. English + Spanish), with substantial English content → answer YES — the candidate can read and apply.
+   - If the description is mostly in English or French, with some paragraphs in another language → proceed to Step B.
+   Step B — Does the job explicitly REQUIRE fluency in a language other than English or French?
+   - YES if: no language requirement stated, or only requires English/French
    - NO if: explicitly requires fluency/C1+ in German, Russian, Polish, Dutch, Swedish, Norwegian, Mandarin, Japanese, Korean, etc.
-   - If job description contains a paragraph in another language but doesn't state it as a REQUIREMENT → YES
 
 2. LOCATION: Can the candidate realistically work this job?
    - YES if: remote worldwide, remote North America, remote Americas, remote EMEA, remote MENA, remote Africa, no restriction mentioned, offers visa sponsorship, uses EOR, remote from a country that commonly sponsors tech workers, or any ambiguous case
    - NO if: EXPLICITLY requires existing US/UK work authorization, EXPLICITLY says "no visa sponsorship", on-site only, hybrid, must relocate without sponsorship, restricted to a low-salary market
 
 3. ROLE: Is this a software development / engineering individual contributor (IC) role?
-   - YES if: developer, software engineer, fullstack, frontend, backend, web developer, programmer, architect (technical)
-   - NO if: management-only, QA-only, data scientist, DevOps-only (no coding), project manager, scrum master, designer, sales engineer, solutions engineer, customer success, support engineer, IT support
+   - YES if: developer, software engineer, fullstack, frontend, backend, web developer, programmer, architect (technical), platform engineer
+   - NO if: management-only, QA-only, data scientist, pure infrastructure/sysadmin with no application development, project manager, scrum master, designer, sales engineer, solutions engineer, customer success, support engineer, IT support, mobile engineer/developer
 
 4. SENIORITY: Can a developer with 5 years experience reasonably apply?
    - YES if: requires up to 7 years, or seniority is preferred not required, or not mentioned
@@ -57,7 +61,7 @@ CHECK EACH OF THESE — answer YES (eligible) or NO (not eligible) for each:
 Return ONLY this JSON (no markdown, no backticks):
 {{
   "language": "YES" or "NO",
-  "language_reason": "brief reason",
+  "language_reason": "Description is written in [language]. [brief reason]",
   "location": "YES" or "NO",
   "location_reason": "brief reason",
   "role": "YES" or "NO",
