@@ -68,7 +68,7 @@ End-to-end automation that scrapes 7 job boards, applies multi-layer filtering (
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/YOUR_USERNAME/job-hunter.git
+git clone https://github.com/AGabtni/job-hunter.git
 cd job-hunter
 pip install -r requirements.txt
 
