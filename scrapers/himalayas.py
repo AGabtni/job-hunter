@@ -61,7 +61,6 @@ def scrape_himalayas(titles: list[str], exclude_keywords: list[str], blocked_cou
             for item in job_list:
                 # Use correct field names from API docs
                 url = item.get("applicationLink", "") or item.get("url", "")
-                guid = item.get("guid", "")
 
                 if not url:
                     continue

@@ -112,13 +112,13 @@ def _scrape_all(config: dict) -> list[dict]:
     blocked = [c.lower().strip() for c in search.get("blocked_countries", []) if c.strip()]
     max_age = search.get("max_age_days", 7)
     all_jobs = []
-    #all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
-    #all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
-    #all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
-    #all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
-    #all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_remoteok(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_linkedin(titles, locations, exclude, blocked_countries=blocked, max_age_days=max_age))
+    all_jobs.extend(scrape_arbeitnow(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_remotive(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_jobicy(titles, exclude, blocked_countries=blocked))
     all_jobs.extend(scrape_himalayas(titles, exclude, blocked_countries=blocked))
-    #all_jobs.extend(scrape_workingnomads(titles, exclude, blocked_countries=blocked))
+    all_jobs.extend(scrape_workingnomads(titles, exclude, blocked_countries=blocked))
     logger.info(f"Total scraped: {len(all_jobs)}")
     return all_jobs
 
